@@ -133,11 +133,12 @@ def fmt_currency(value: float) -> str:
 
 
 def render_metric_cards(stats: pd.Series) -> None:
-    c1, c2, c3, c4 = st.columns(4)
+    c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Median ending wealth", fmt_currency(stats["median"]))
     c2.metric("Mean ending wealth", fmt_currency(stats["mean"]))
-    c3.metric("10th–90th percentile", f"{fmt_currency(stats['p10'])} → {fmt_currency(stats['p90'])}")
-    c4.metric("Median CAGR", f"{stats['cagr_median'] * 100:.2f}%")
+    c3.metric("10th percentile", fmt_currency(stats["p10"]))
+    c4.metric("90th percentile", fmt_currency(stats["p90"]))
+    c5.metric("Median CAGR", f"{stats['cagr_median'] * 100:.2f}%")
 
 
 def build_timeline_chart(result: HistoricalSimulationResult) -> go.Figure:
@@ -173,30 +174,56 @@ def main() -> None:
     st.markdown("""<div class="hero"><h1>SNP Investment </h1><p>Embedded historical rolling-horizon study with interactive charts.</p></div>""", unsafe_allow_html=True)
     returns_df = load_returns_from_mat_bytes(load_embedded_dataset(DEFAULT_DATASET))
 
+    max_possible_years = max(5, (len(returns_df) - 1) // 12)
+    default_min = min(30, max_possible_years)
+    default_max = min(40, max_possible_years)
+    if default_min > default_max:
+        default_min = max(5, default_max - 5)
+
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.subheader("Study settings")
-    a, b, c = st.columns(3)
+    a, b, c = st.columns([1, 1, 1.3])
     initial_investment = a.number_input("Initial investment (£)", min_value=0.0, value=75000.0, step=5000.0)
     monthly_contribution = b.number_input("Monthly contribution (£)", min_value=0.0, value=0.0, step=100.0)
-    horizon_years = c.slider("Primary horizon (years)", min_value=30, max_value=40, value=30)
-    d, e, f, g = st.columns(4)
-    fund_fee_annual = d.number_input("Fund fee (% / year)", min_value=0.0, value=0.07, step=0.01) / 100.0
-    platform_fee_annual = e.number_input("Platform fee (% / year)", min_value=0.0, value=0.15, step=0.01) / 100.0
-    platform_fee_monthly_min = f.number_input("Platform minimum (£ / month)", min_value=0.0, value=4.0, step=0.5)
-    platform_fee_annual_cap = g.number_input("Platform cap (£ / year)", min_value=0.0, value=375.0, step=25.0)
+    year_range = c.slider(
+        "Investment horizon range (years)",
+        min_value=5,
+        max_value=int(max_possible_years),
+        value=(int(default_min), int(default_max)),
+    )
+
+    with st.expander("Advanced fee settings", expanded=False):
+        d, e, f, g = st.columns(4)
+        fund_fee_annual = d.number_input("Fund fee (% / year)", min_value=0.0, value=0.07, step=0.01) / 100.0
+        platform_fee_annual = e.number_input("Platform fee (% / year)", min_value=0.0, value=0.15, step=0.01) / 100.0
+        platform_fee_monthly_min = f.number_input("Platform minimum (£ / month)", min_value=0.0, value=4.0, step=0.5)
+        platform_fee_annual_cap = g.number_input("Platform cap (£ / year)", min_value=0.0, value=375.0, step=25.0)
+
+        featured_horizon = st.slider(
+            "Featured horizon for distribution chart (years)",
+            min_value=int(year_range[0]),
+            max_value=int(year_range[1]),
+            value=int(year_range[1]),
+        )
+
     st.markdown('</div>', unsafe_allow_html=True)
 
-    primary = simulate_rolling_horizon(returns_df, horizon_years, initial_investment, monthly_contribution, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap)
-    horizon_results = [simulate_rolling_horizon(returns_df, yr, initial_investment, monthly_contribution, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap) for yr in range(30, 41)]
+    horizon_results = [
+        simulate_rolling_horizon(
+            returns_df, yr, initial_investment, monthly_contribution,
+            fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap
+        )
+        for yr in range(int(year_range[0]), int(year_range[1]) + 1)
+    ]
     summary_df = pd.DataFrame([{"years": r.years, **r.stats.to_dict()} for r in horizon_results])
+    primary = next(r for r in horizon_results if r.years == int(featured_horizon))
 
     render_metric_cards(primary.stats)
-    t1, t2, t3 = st.tabs(["Timeline", "Distribution", "Horizon view"])
-    with t1:
-        st.plotly_chart(build_timeline_chart(primary), use_container_width=True, theme="streamlit")
-    with t2:
+
+    left, right = st.columns([1.1, 1.2])
+    with left:
         st.plotly_chart(build_distribution_chart(primary), use_container_width=True, theme="streamlit")
-    with t3:
+    with right:
         st.plotly_chart(build_horizon_chart(summary_df), use_container_width=True, theme="streamlit")
 
     st.subheader("Summary table")
@@ -207,7 +234,7 @@ def main() -> None:
     table_df["cagr_median"] = table_df["cagr_median"].map(lambda x: f"{x*100:.2f}%")
     st.dataframe(table_df, use_container_width=True, hide_index=True)
     st.download_button("Download summary CSV", summary_df.to_csv(index=False).encode("utf-8"), file_name="historical_summary_statistics.csv", mime="text/csv")
-    st.caption("Embedded dataset: Washington MAT series. No upload step required.")
+    st.caption(f"Embedded dataset: Washington MAT series. Horizon range shown: {int(year_range[0])} to {int(year_range[1])} years.")
 
 if __name__ == "__main__":
     main()
