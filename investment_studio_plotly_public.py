@@ -170,7 +170,7 @@ def build_horizon_chart(summary_df: pd.DataFrame) -> go.Figure:
 
 def main() -> None:
     inject_css()
-    st.markdown("""<div class="hero"><h1>Investment Studio</h1><p>Embedded historical rolling-horizon study with interactive charts and a cleaner presentation layer.</p></div>""", unsafe_allow_html=True)
+    st.markdown("""<div class="hero"><h1>SNP Investment </h1><p>Embedded historical rolling-horizon study with interactive charts.</p></div>""", unsafe_allow_html=True)
     returns_df = load_returns_from_mat_bytes(load_embedded_dataset(DEFAULT_DATASET))
 
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
