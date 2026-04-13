@@ -386,7 +386,7 @@ def main() -> None:
     monthly_contribution = b.number_input(f"Monthly contribution ({currency_symbol})", min_value=0.0, value=0.0, step=100.0)
     year_range = c.slider(
         "Investment horizon range (years)",
-        min_value=5,
+        min_value=2,
         max_value=int(max_possible_years),
         value=(int(default_min), int(default_max)),
     )
