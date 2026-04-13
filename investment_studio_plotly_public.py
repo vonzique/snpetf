@@ -429,9 +429,9 @@ def main() -> None:
 
     left, right = st.columns([1.1, 1.2])
     with left:
-        st.plotly_chart(build_distribution_chart(primary, currency_symbol), use_container_width=True, theme="streamlit")
+        st.plotly_chart(build_distribution_chart(primary, currency_symbol), width="stretch", theme="streamlit")
     with right:
-        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol), use_container_width=True, theme="streamlit")
+        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol), width="stretch", theme="streamlit")
 
     st.subheader("Summary table")
     table_df = summary_df[["years", "total_contribution", "min", "p10", "median", "mean", "p90", "max", "wealth_multiple_median", "cagr_median"]].copy()
@@ -439,7 +439,7 @@ def main() -> None:
         table_df[col] = table_df[col].map(lambda x: fmt_currency(x, currency_symbol))
     table_df["wealth_multiple_median"] = table_df["wealth_multiple_median"].map(lambda x: f"{x:.2f}x")
     table_df["cagr_median"] = table_df["cagr_median"].map(lambda x: f"{x*100:.2f}%")
-    st.dataframe(table_df, use_container_width=True, hide_index=True)
+    st.dataframe(table_df, width="stretch", hide_index=True)
     st.download_button(
         "Download summary CSV",
         summary_df.to_csv(index=False).encode("utf-8"),
