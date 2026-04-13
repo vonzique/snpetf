@@ -343,7 +343,7 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str) -> go.Fi
 def main() -> None:
     inject_css()
     st.markdown(
-        """<div class="hero"><h1>SNP Investment</h1><p>Embedded historical rolling-horizon study with interactive charts.</p></div>""",
+        """<div class="hero"><h1>SNP500 investment dy Dimi</h1><p>A historical backtest of long-term investing in the S&P 500 by simulating how a portfolio would have evolved across many different starting points in time. Using monthly return data, it runs a rolling-window analysis where an initial investment, optionally combined with regular monthly contributions, is compounded over a chosen investment horizon (e.g. 30 years) for every possible start date in the dataset. Realistic fees are applied throughout, including fund and platform charges with minimums and caps. The model then aggregates all simulations to produce a distribution of outcomes, reporting key metrics such as median and average final wealth, percentile ranges, and compound annual growth rates. This allows the user to understand not just expected returns, but the full range of historical outcomes, highlighting the impact of timing, duration, contributions, and fees on long-term investment performance.</p></div>""",
         unsafe_allow_html=True,
     )
 
