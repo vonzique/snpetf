@@ -103,11 +103,24 @@ def load_fx_series(series_name: str) -> pd.DataFrame:
     return out[["date", "fx_rate"]]
 
 
-def apply_currency_adjustment(returns_df: pd.DataFrame, output_currency: str) -> pd.DataFrame:
+def apply_currency_adjustment(returns_df: pd.DataFrame, output_currency: str) -> tuple[pd.DataFrame, dict]:
+    diagnostics = {
+        "output_currency": output_currency,
+        "fx_series": None,
+        "fx_coverage_start": None,
+        "fx_coverage_end": None,
+        "asset_geo_return_usd": float((1.0 + returns_df["return"].astype(float)).prod() ** (12.0 / len(returns_df)) - 1.0),
+        "fx_geo_return_local": 0.0,
+        "combined_geo_return_local": float((1.0 + returns_df["return"].astype(float)).prod() ** (12.0 / len(returns_df)) - 1.0),
+        "covered_months": 0,
+        "total_months": int(len(returns_df)),
+    }
+
     if output_currency == "USD":
-        return returns_df.copy()
+        return returns_df.copy(), diagnostics
 
     series_name = CURRENCY_CONFIG[output_currency]["series"]
+    diagnostics["fx_series"] = series_name
     fx_df = load_fx_series(series_name)
 
     merged = returns_df.copy().merge(fx_df, on="date", how="left")
@@ -120,8 +133,54 @@ def apply_currency_adjustment(returns_df: pd.DataFrame, output_currency: str) ->
     fx_return = fx_filled.pct_change().fillna(0.0)
     fx_return = fx_return.where(coverage_now & coverage_prev, 0.0)
 
-    merged["return"] = (1.0 + merged["return"].astype(float)) * (1.0 + fx_return.astype(float)) - 1.0
-    return merged[["date", "return"]].copy()
+    asset_return = merged["return"].astype(float)
+    combined_return = (1.0 + asset_return) * (1.0 + fx_return.astype(float)) - 1.0
+    merged["return"] = combined_return
+
+    if actual_fx.notna().any():
+        diagnostics["fx_coverage_start"] = actual_fx[actual_fx.notna()].index.min()
+        diagnostics["fx_coverage_end"] = actual_fx[actual_fx.notna()].index.max()
+        diagnostics["fx_coverage_start"] = merged.loc[diagnostics["fx_coverage_start"], "date"]
+        diagnostics["fx_coverage_end"] = merged.loc[diagnostics["fx_coverage_end"], "date"]
+
+    diagnostics["covered_months"] = int((coverage_now & coverage_prev).sum())
+    if diagnostics["covered_months"] > 0:
+        valid_fx = fx_return[coverage_now & coverage_prev]
+        diagnostics["fx_geo_return_local"] = float((1.0 + valid_fx).prod() ** (12.0 / len(valid_fx)) - 1.0)
+    diagnostics["combined_geo_return_local"] = float((1.0 + combined_return).prod() ** (12.0 / len(combined_return)) - 1.0)
+
+    return merged[["date", "return"]].copy(), diagnostics
+
+
+def render_fx_diagnostics(diag: dict, currency_symbol: str) -> None:
+    with st.expander("FX conversion review", expanded=False):
+        if diag["output_currency"] == "USD":
+            st.write("USD output uses the raw embedded return series with no FX translation.")
+            return
+
+        coverage_start = diag["fx_coverage_start"].strftime("%Y-%m") if diag["fx_coverage_start"] is not None else "n/a"
+        coverage_end = diag["fx_coverage_end"].strftime("%Y-%m") if diag["fx_coverage_end"] is not None else "n/a"
+        uplift = diag["combined_geo_return_local"] - diag["asset_geo_return_usd"]
+
+        st.markdown(
+            f"""
+**Method used**
+- Embedded S&P return series is treated as **USD-denominated monthly asset return**
+- FX series **{diag['fx_series']}** is inverted to get local currency per USD
+- Monthly local return is computed as **(1 + asset return) × (1 + FX return) − 1**
+- Missing FX dates are treated as **1:1**, but FX return is forced to **0** until real consecutive FX observations exist
+
+**Coverage**
+- FX coverage window: **{coverage_start}** to **{coverage_end}**
+- Months with active FX translation: **{diag['covered_months']:,}** of **{diag['total_months']:,}**
+
+**Annualised diagnostic**
+- Asset-only geometric return in USD: **{diag['asset_geo_return_usd']*100:.2f}%**
+- FX-only geometric return in {diag['output_currency']}: **{diag['fx_geo_return_local']*100:.2f}%**
+- Combined geometric return in {diag['output_currency']}: **{diag['combined_geo_return_local']*100:.2f}%**
+- Net uplift vs USD view: **{uplift*100:.2f}% per year**
+            """
+        )
 
 
 def annual_rate_to_monthly_rate(annual_rate: float) -> float:
@@ -298,8 +357,8 @@ def main() -> None:
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.subheader("Study settings")
     a, b, c, d = st.columns([1, 1, 1.2, 0.8])
-    initial_investment = a.number_input("Initial investment (£)", min_value=0.0, value=75000.0, step=5000.0)
-    monthly_contribution = b.number_input("Monthly contribution (£)", min_value=0.0, value=0.0, step=100.0)
+    initial_investment = a.number_input(f"Initial investment ({currency_symbol})", min_value=0.0, value=75000.0, step=5000.0)
+    monthly_contribution = b.number_input(f"Monthly contribution ({currency_symbol})", min_value=0.0, value=0.0, step=100.0)
     year_range = c.slider(
         "Investment horizon range (years)",
         min_value=5,
@@ -308,13 +367,14 @@ def main() -> None:
     )
     output_currency = d.selectbox("Output currency", ["GBP", "USD", "EUR"], index=0)
     currency_symbol = CURRENCY_CONFIG[output_currency]["symbol"]
+    currency_label = CURRENCY_CONFIG[output_currency]["label"]
 
     with st.expander("Advanced fee settings", expanded=False):
         e, f, g, h = st.columns(4)
         fund_fee_annual = e.number_input("Fund fee (% / year)", min_value=0.0, value=0.07, step=0.01) / 100.0
         platform_fee_annual = f.number_input("Platform fee (% / year)", min_value=0.0, value=0.15, step=0.01) / 100.0
-        platform_fee_monthly_min = g.number_input("Platform minimum (£ / month)", min_value=0.0, value=4.0, step=0.5)
-        platform_fee_annual_cap = h.number_input("Platform cap (£ / year)", min_value=0.0, value=375.0, step=25.0)
+        platform_fee_monthly_min = g.number_input(f"Platform minimum ({currency_symbol} / month)", min_value=0.0, value=4.0, step=0.5)
+        platform_fee_annual_cap = h.number_input(f"Platform cap ({currency_symbol} / year)", min_value=0.0, value=375.0, step=25.0)
         featured_horizon = st.slider(
             "Featured horizon for distribution chart (years)",
             min_value=int(year_range[0]),
@@ -323,7 +383,7 @@ def main() -> None:
         )
     st.markdown('</div>', unsafe_allow_html=True)
 
-    returns_df = apply_currency_adjustment(base_returns_df, output_currency)
+    returns_df, fx_diag = apply_currency_adjustment(base_returns_df, output_currency)
 
     horizon_results = [
         simulate_rolling_horizon(
@@ -342,6 +402,7 @@ def main() -> None:
     primary = next(r for r in horizon_results if r.years == int(featured_horizon))
 
     render_metric_cards(primary.stats, currency_symbol)
+    render_fx_diagnostics(fx_diag, currency_symbol)
 
     left, right = st.columns([1.1, 1.2])
     with left:
@@ -363,7 +424,7 @@ def main() -> None:
         mime="text/csv",
     )
     st.caption(
-        f"Embedded dataset: Washington MAT series. Output currency: {output_currency}. "
+        f"Embedded dataset: Washington MAT series. Output currency: {currency_label}. "
         f"Horizon range shown: {int(year_range[0])} to {int(year_range[1])} years."
     )
 
