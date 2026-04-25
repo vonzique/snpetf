@@ -32,9 +32,18 @@ CURRENCY_CONFIG = {
 class HistoricalSimulationResult:
     years: int
     total_contribution: float
+    start_dates: pd.Series
     end_dates: pd.Series
     final_values: pd.Series
+    total_fees: pd.Series
+    max_drawdowns: pd.Series
     stats: pd.Series
+
+
+CONTRIBUTION_TIMING_OPTIONS = {
+    "Start of month (optimistic)": "start",
+    "End of month (conservative)": "end",
+}
 
 
 def inject_css() -> None:
@@ -44,7 +53,7 @@ def inject_css() -> None:
         div[data-testid="stToolbar"] {display: none;}
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
-        .block-container {padding-top: 1.2rem; padding-bottom: 1.6rem; max-width: 1280px;}
+        .block-container {padding-top: 1.2rem; padding-bottom: 1.6rem; max-width: 1320px;}
         .hero {padding: 1.35rem 1.5rem; border-radius: 24px; background: linear-gradient(135deg, #0f172a 0%, #111827 45%, #1e293b 100%); color: white; border: 1px solid rgba(148,163,184,.15); box-shadow: 0 24px 60px rgba(15,23,42,.22); margin-bottom: 1rem;}
         .hero h1 {margin: 0; font-size: 2rem; font-weight: 700;}
         .hero p {margin: .35rem 0 0 0; color: #cbd5e1;}
@@ -79,7 +88,9 @@ def load_returns_from_mat_bytes(file_bytes: bytes, variable_name: str = "snp1871
     ) + pd.offsets.MonthEnd(0)
 
     df = pd.DataFrame({"date": dates, "return": returns})
-    return df.dropna(subset=["date", "return"]).sort_values("date").reset_index(drop=True)
+    df = df.dropna(subset=["date", "return"]).sort_values("date").drop_duplicates("date").reset_index(drop=True)
+    df["fx_covered"] = True
+    return df
 
 
 @st.cache_data
@@ -95,64 +106,76 @@ def load_fx_series(series_name: str) -> pd.DataFrame:
     out = df.rename(columns={"observation_date": "date", series_name: "fx_raw"}).copy()
     out["date"] = pd.to_datetime(out["date"], errors="coerce") + pd.offsets.MonthEnd(0)
     out["fx_raw"] = pd.to_numeric(out["fx_raw"], errors="coerce")
-    out = out.dropna(subset=["date", "fx_raw"]).sort_values("date").reset_index(drop=True)
-
-    # FRED EXUSUK / EXUSEU are quoted as USD per GBP or USD per EUR.
-    # For a USD asset converted to GBP/EUR terms, we need GBP/USD or EUR/USD.
+    out = out.dropna(subset=["date", "fx_raw"]).sort_values("date").drop_duplicates("date").reset_index(drop=True)
     out["fx_rate"] = 1.0 / out["fx_raw"]
     return out[["date", "fx_rate"]]
 
 
+def safe_geo_return(returns: pd.Series | np.ndarray) -> float:
+    r = pd.Series(returns, dtype="float64").dropna()
+    if r.empty:
+        return float("nan")
+    gross = 1.0 + r
+    if (gross <= 0).any():
+        return float("nan")
+    return float(gross.prod() ** (12.0 / len(r)) - 1.0)
+
+
 def apply_currency_adjustment(returns_df: pd.DataFrame, output_currency: str) -> tuple[pd.DataFrame, dict]:
+    base = returns_df.copy()
     diagnostics = {
         "output_currency": output_currency,
         "fx_series": None,
         "fx_coverage_start": None,
         "fx_coverage_end": None,
-        "asset_geo_return_usd": float((1.0 + returns_df["return"].astype(float)).prod() ** (12.0 / len(returns_df)) - 1.0),
+        "asset_geo_return_usd": safe_geo_return(base["return"]),
         "fx_geo_return_local": 0.0,
-        "combined_geo_return_local": float((1.0 + returns_df["return"].astype(float)).prod() ** (12.0 / len(returns_df)) - 1.0),
-        "covered_months": 0,
-        "total_months": int(len(returns_df)),
+        "combined_geo_return_local": safe_geo_return(base["return"]),
+        "covered_months": int(len(base)),
+        "total_months": int(len(base)),
+        "missing_fx_months": 0,
     }
 
     if output_currency == "USD":
-        return returns_df.copy(), diagnostics
+        base["fx_covered"] = True
+        return base[["date", "return", "fx_covered"]].copy(), diagnostics
 
     series_name = CURRENCY_CONFIG[output_currency]["series"]
     diagnostics["fx_series"] = series_name
     fx_df = load_fx_series(series_name)
 
-    merged = returns_df.copy().merge(fx_df, on="date", how="left")
+    merged = base.merge(fx_df, on="date", how="left")
     actual_fx = merged["fx_rate"].copy()
     fx_filled = actual_fx.fillna(1.0)
 
     coverage_now = actual_fx.notna()
     coverage_prev = actual_fx.shift(1).notna()
+    fx_covered = coverage_now & coverage_prev
 
     fx_return = fx_filled.pct_change().fillna(0.0)
-    fx_return = fx_return.where(coverage_now & coverage_prev, 0.0)
+    fx_return = fx_return.where(fx_covered, 0.0)
 
     asset_return = merged["return"].astype(float)
     combined_return = (1.0 + asset_return) * (1.0 + fx_return.astype(float)) - 1.0
     merged["return"] = combined_return
+    merged["fx_covered"] = fx_covered.astype(bool)
 
     if actual_fx.notna().any():
-        diagnostics["fx_coverage_start"] = actual_fx[actual_fx.notna()].index.min()
-        diagnostics["fx_coverage_end"] = actual_fx[actual_fx.notna()].index.max()
-        diagnostics["fx_coverage_start"] = merged.loc[diagnostics["fx_coverage_start"], "date"]
-        diagnostics["fx_coverage_end"] = merged.loc[diagnostics["fx_coverage_end"], "date"]
+        first_idx = actual_fx[actual_fx.notna()].index.min()
+        last_idx = actual_fx[actual_fx.notna()].index.max()
+        diagnostics["fx_coverage_start"] = merged.loc[first_idx, "date"]
+        diagnostics["fx_coverage_end"] = merged.loc[last_idx, "date"]
 
-    diagnostics["covered_months"] = int((coverage_now & coverage_prev).sum())
+    diagnostics["covered_months"] = int(fx_covered.sum())
+    diagnostics["missing_fx_months"] = int((~fx_covered).sum())
     if diagnostics["covered_months"] > 0:
-        valid_fx = fx_return[coverage_now & coverage_prev]
-        diagnostics["fx_geo_return_local"] = float((1.0 + valid_fx).prod() ** (12.0 / len(valid_fx)) - 1.0)
-    diagnostics["combined_geo_return_local"] = float((1.0 + combined_return).prod() ** (12.0 / len(combined_return)) - 1.0)
+        diagnostics["fx_geo_return_local"] = safe_geo_return(fx_return[fx_covered])
+    diagnostics["combined_geo_return_local"] = safe_geo_return(combined_return)
 
-    return merged[["date", "return"]].copy(), diagnostics
+    return merged[["date", "return", "fx_covered"]].copy(), diagnostics
 
 
-def render_fx_diagnostics(diag: dict, currency_symbol: str) -> None:
+def render_fx_diagnostics(diag: dict, only_full_fx_windows: bool) -> None:
     with st.expander("FX conversion review", expanded=False):
         if diag["output_currency"] == "USD":
             st.write("USD output uses the raw embedded return series with no FX translation.")
@@ -161,18 +184,20 @@ def render_fx_diagnostics(diag: dict, currency_symbol: str) -> None:
         coverage_start = diag["fx_coverage_start"].strftime("%Y-%m") if diag["fx_coverage_start"] is not None else "n/a"
         coverage_end = diag["fx_coverage_end"].strftime("%Y-%m") if diag["fx_coverage_end"] is not None else "n/a"
         uplift = diag["combined_geo_return_local"] - diag["asset_geo_return_usd"]
+        filter_text = "ON - rolling windows with incomplete FX translation are excluded" if only_full_fx_windows else "OFF - older windows are retained with zero FX movement where FX is missing"
 
         st.markdown(
             f"""
 **Method used**
-- Embedded S&P return series is treated as **USD-denominated monthly asset return**
-- FX series **{diag['fx_series']}** is inverted to get local currency per USD
-- Monthly local return is computed as **(1 + asset return) × (1 + FX return) − 1**
-- Missing FX dates are treated as **1:1**, but FX return is forced to **0** until real consecutive FX observations exist
+- Embedded S&P return series is treated as **USD-denominated monthly asset return**.
+- FX series **{diag['fx_series']}** is inverted to get local currency per USD.
+- Monthly local return is computed as **(1 + asset return) × (1 + FX return) − 1**.
+- FX full-coverage filter: **{filter_text}**.
 
 **Coverage**
 - FX coverage window: **{coverage_start}** to **{coverage_end}**
 - Months with active FX translation: **{diag['covered_months']:,}** of **{diag['total_months']:,}**
+- Months without consecutive FX observations: **{diag['missing_fx_months']:,}**
 
 **Annualised diagnostic**
 - Asset-only geometric return in USD: **{diag['asset_geo_return_usd']*100:.2f}%**
@@ -184,272 +209,397 @@ def render_fx_diagnostics(diag: dict, currency_symbol: str) -> None:
 
 
 def annual_rate_to_monthly_rate(annual_rate: float) -> float:
-    return 1.0 - (1.0 - annual_rate) ** (1.0 / 12.0)
+    if annual_rate <= -1.0:
+        raise ValueError("Annual rate must be greater than -100%.")
+    return (1.0 + annual_rate) ** (1.0 / 12.0) - 1.0
 
 
-def apply_period_fee(
-    portfolio_value: float,
-    fund_fee_annual: float,
-    platform_fee_annual: float,
-    platform_fee_monthly_min: float,
-    platform_fee_annual_cap: float,
-) -> tuple[float, float]:
+def apply_period_fee(portfolio_value: float, fund_fee_annual: float, platform_fee_annual: float, platform_fee_monthly_min: float, platform_fee_annual_cap: float) -> tuple[float, float]:
+    if portfolio_value <= 0:
+        return 0.0, 0.0
     fund_fee = portfolio_value * annual_rate_to_monthly_rate(fund_fee_annual)
     platform_fee_raw = portfolio_value * annual_rate_to_monthly_rate(platform_fee_annual)
-    platform_fee = min(max(platform_fee_raw, platform_fee_monthly_min), platform_fee_annual_cap / 12.0)
-    total_fee = fund_fee + platform_fee
-    return portfolio_value - total_fee, total_fee
+    if platform_fee_annual_cap > 0:
+        platform_fee_raw = min(platform_fee_raw, platform_fee_annual_cap / 12.0)
+    platform_fee = max(platform_fee_raw, platform_fee_monthly_min) if platform_fee_monthly_min > 0 else platform_fee_raw
+    total_fee = max(0.0, fund_fee + platform_fee)
+    return max(0.0, portfolio_value - total_fee), total_fee
 
 
-def summarise_distribution(final_values: pd.Series, total_contribution: float, years: int) -> pd.Series:
-    wealth_multiple = final_values / total_contribution
-    cagr = (final_values / total_contribution) ** (1 / years) - 1
+def max_consecutive_true(values: pd.Series | np.ndarray) -> int:
+    best = current = 0
+    for val in pd.Series(values).fillna(False).astype(bool):
+        if val:
+            current += 1
+            best = max(best, current)
+        else:
+            current = 0
+    return best
+
+
+def cashflow_irr_from_final_value(final_value: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str) -> float:
+    months = int(years * 12)
+    if months <= 0 or final_value <= 0:
+        return float("nan")
+
+    if contribution_timing == "start":
+        flows = [-(initial_investment + monthly_contribution)]
+        flows.extend([-monthly_contribution] * max(0, months - 1))
+        flows.append(final_value)
+    else:
+        flows = [-initial_investment]
+        flows.extend([-monthly_contribution] * max(0, months - 1))
+        flows.append(final_value - monthly_contribution)
+
+    if not any(f < 0 for f in flows) or not any(f > 0 for f in flows):
+        return float("nan")
+
+    def npv(monthly_rate: float) -> float:
+        denom = 1.0 + monthly_rate
+        if denom <= 0:
+            return float("inf")
+        return float(sum(cf / (denom ** i) for i, cf in enumerate(flows)))
+
+    low, high = -0.9999, 0.25
+    npv_low, npv_high = npv(low), npv(high)
+    for _ in range(20):
+        if npv_low * npv_high <= 0:
+            break
+        high *= 2.0
+        npv_high = npv(high)
+    else:
+        return float("nan")
+
+    monthly_irr = float("nan")
+    for _ in range(80):
+        mid = (low + high) / 2.0
+        npv_mid = npv(mid)
+        if abs(npv_mid) < 1e-7:
+            monthly_irr = mid
+            break
+        if npv_low * npv_mid <= 0:
+            high = mid
+            npv_high = npv_mid
+        else:
+            low = mid
+            npv_low = npv_mid
+    if pd.isna(monthly_irr):
+        monthly_irr = (low + high) / 2.0
+    return float((1.0 + monthly_irr) ** 12.0 - 1.0)
+
+
+def summarise_distribution(final_values: pd.Series, start_dates: pd.Series, end_dates: pd.Series, total_contribution: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str, total_fees: pd.Series, max_drawdowns: pd.Series, target_wealth: float, inflation_annual: float) -> pd.Series:
+    if final_values.empty:
+        raise ValueError("No valid rolling windows were available for this horizon and filter combination.")
+
+    wealth_multiple = final_values / total_contribution if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
+    paid_in_annualised = (wealth_multiple ** (1 / years) - 1) if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
+    real_discount = (1.0 + inflation_annual) ** years
+    real_values = final_values / real_discount if real_discount > 0 else final_values.copy()
+
+    worst_idx = final_values.idxmin()
+    best_idx = final_values.idxmax()
+    median_final = float(final_values.median())
+    p10_final = float(final_values.quantile(0.10))
+    p90_final = float(final_values.quantile(0.90))
+
     return pd.Series({
         "count": int(final_values.count()),
         "total_contribution": float(total_contribution),
         "min": float(final_values.min()),
-        "p10": float(final_values.quantile(0.10)),
-        "median": float(final_values.median()),
+        "p05": float(final_values.quantile(0.05)),
+        "p10": p10_final,
+        "median": median_final,
         "mean": float(final_values.mean()),
-        "p90": float(final_values.quantile(0.90)),
+        "p90": p90_final,
+        "p95": float(final_values.quantile(0.95)),
         "max": float(final_values.max()),
         "std": float(final_values.std(ddof=1)),
-        "wealth_multiple_median": float(wealth_multiple.median()),
-        "cagr_median": float(cagr.median()),
+        "real_p10": float(real_values.quantile(0.10)),
+        "real_median": float(real_values.median()),
+        "real_p90": float(real_values.quantile(0.90)),
+        "wealth_multiple_median": float(wealth_multiple.median()) if total_contribution > 0 else float("nan"),
+        "paid_in_annualised_median": float(paid_in_annualised.median()) if total_contribution > 0 else float("nan"),
+        "mwr_p10": cashflow_irr_from_final_value(p10_final, years, initial_investment, monthly_contribution, contribution_timing),
+        "mwr_median": cashflow_irr_from_final_value(median_final, years, initial_investment, monthly_contribution, contribution_timing),
+        "mwr_p90": cashflow_irr_from_final_value(p90_final, years, initial_investment, monthly_contribution, contribution_timing),
+        "prob_below_contribution": float((final_values < total_contribution).mean()) if total_contribution > 0 else float("nan"),
+        "prob_above_target": float((final_values >= target_wealth).mean()) if target_wealth > 0 else float("nan"),
+        "fees_median": float(total_fees.median()),
+        "fees_mean": float(total_fees.mean()),
+        "max_drawdown_median": float(max_drawdowns.median()),
+        "max_drawdown_worst": float(max_drawdowns.min()),
+        "worst_start": start_dates.loc[worst_idx],
+        "worst_end": end_dates.loc[worst_idx],
+        "best_start": start_dates.loc[best_idx],
+        "best_end": end_dates.loc[best_idx],
     })
 
 
-def simulate_rolling_horizon(
-    returns_df: pd.DataFrame,
-    years: int,
-    initial_investment: float,
-    monthly_contribution: float,
-    fund_fee_annual: float,
-    platform_fee_annual: float,
-    platform_fee_monthly_min: float,
-    platform_fee_annual_cap: float,
-) -> HistoricalSimulationResult:
+def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_investment: float, monthly_contribution: float, fund_fee_annual: float, platform_fee_annual: float, platform_fee_monthly_min: float, platform_fee_annual_cap: float, contribution_timing: str, only_full_fx_windows: bool, target_wealth: float, inflation_annual: float) -> HistoricalSimulationResult:
     months = years * 12
     n = len(returns_df)
-    if n <= months:
-        raise ValueError(f"Dataset has {n} rows, but needs more than {months} rows for a {years}-year rolling study.")
+    if n < months:
+        raise ValueError(f"Dataset has {n} rows, but needs at least {months} rows for a {years}-year rolling study.")
 
-    final_values = []
-    end_dates = []
+    final_values, start_dates, end_dates, total_fees_all, max_drawdowns_all = [], [], [], [], []
     returns = returns_df["return"].to_numpy(dtype=float)
+    fx_covered = returns_df.get("fx_covered", pd.Series(True, index=returns_df.index)).to_numpy(dtype=bool)
     dates = returns_df["date"].reset_index(drop=True)
 
-    for start_idx in range(0, n - months):
+    for start_idx in range(0, n - months + 1):
         end_idx = start_idx + months
+        if only_full_fx_windows and not bool(fx_covered[start_idx:end_idx].all()):
+            continue
+
         portfolio = float(initial_investment)
+        total_fees_paid = 0.0
+        peak = max(portfolio, 1e-12)
+        max_dd = 0.0
+
         for t in range(start_idx, end_idx):
-            portfolio = (portfolio + monthly_contribution) * (1.0 + returns[t])
-            portfolio, _ = apply_period_fee(
-                portfolio,
-                fund_fee_annual,
-                platform_fee_annual,
-                platform_fee_monthly_min,
-                platform_fee_annual_cap,
-            )
+            if contribution_timing == "start":
+                portfolio += monthly_contribution
+                portfolio *= (1.0 + returns[t])
+                portfolio, fee_paid = apply_period_fee(portfolio, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap)
+            else:
+                portfolio *= (1.0 + returns[t])
+                portfolio, fee_paid = apply_period_fee(portfolio, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap)
+                portfolio += monthly_contribution
+            total_fees_paid += fee_paid
+            peak = max(peak, portfolio, 1e-12)
+            max_dd = min(max_dd, (portfolio / peak) - 1.0)
+
         final_values.append(portfolio)
-        end_dates.append(dates.iloc[end_idx])
+        start_dates.append(dates.iloc[start_idx])
+        end_dates.append(dates.iloc[end_idx - 1])
+        total_fees_all.append(total_fees_paid)
+        max_drawdowns_all.append(max_dd)
+
+    if not final_values:
+        raise ValueError(f"No valid {years}-year rolling windows after applying the FX coverage filter. Reduce the horizon, switch currency, or disable the full-FX-coverage filter.")
 
     final_values_s = pd.Series(final_values, name="final_value")
+    start_dates_s = pd.Series(start_dates, name="start_date")
     end_dates_s = pd.Series(end_dates, name="end_date")
+    total_fees_s = pd.Series(total_fees_all, name="total_fees")
+    max_drawdowns_s = pd.Series(max_drawdowns_all, name="max_drawdown")
     total_contribution = initial_investment + monthly_contribution * months
-    stats = summarise_distribution(final_values_s, total_contribution, years)
-    return HistoricalSimulationResult(
-        years=years,
-        total_contribution=float(total_contribution),
-        end_dates=end_dates_s,
-        final_values=final_values_s,
-        stats=stats,
-    )
+
+    stats = summarise_distribution(final_values_s, start_dates_s, end_dates_s, float(total_contribution), years, initial_investment, monthly_contribution, contribution_timing, total_fees_s, max_drawdowns_s, target_wealth, inflation_annual)
+    return HistoricalSimulationResult(years, float(total_contribution), start_dates_s, end_dates_s, final_values_s, total_fees_s, max_drawdowns_s, stats)
 
 
 def fmt_currency(value: float, currency_symbol: str) -> str:
+    if pd.isna(value):
+        return "n/a"
     return f"{currency_symbol}{value:,.0f}"
 
 
-def render_metric_cards(stats: pd.Series, currency_symbol: str) -> None:
+def fmt_percent(value: float) -> str:
+    if pd.isna(value):
+        return "n/a"
+    return f"{value * 100:.2f}%"
+
+
+def fmt_multiple(value: float) -> str:
+    if pd.isna(value):
+        return "n/a"
+    return f"{value:.2f}x"
+
+
+def fmt_date(value: object) -> str:
+    if pd.isna(value):
+        return "n/a"
+    return pd.to_datetime(value).strftime("%Y-%m")
+
+
+def render_metric_cards(stats: pd.Series, currency_symbol: str, target_wealth: float, inflation_annual: float) -> None:
     c1, c2, c3, c4, c5 = st.columns(5)
     c1.metric("Median ending wealth", fmt_currency(stats["median"], currency_symbol))
-    c2.metric("Mean ending wealth", fmt_currency(stats["mean"], currency_symbol))
-    c3.metric("10th percentile", fmt_currency(stats["p10"], currency_symbol))
-    c4.metric("90th percentile", fmt_currency(stats["p90"], currency_symbol))
-    c5.metric("Median CAGR", f"{stats['cagr_median'] * 100:.2f}%")
+    c2.metric("10th-90th range", f"{fmt_currency(stats['p10'], currency_symbol)} - {fmt_currency(stats['p90'], currency_symbol)}")
+    if inflation_annual > 0:
+        c3.metric("Median in today's money", fmt_currency(stats["real_median"], currency_symbol))
+    else:
+        c3.metric("Mean ending wealth", fmt_currency(stats["mean"], currency_symbol))
+    c4.metric("Median money-weighted return", fmt_percent(stats["mwr_median"]))
+    if target_wealth > 0:
+        c5.metric("Historical windows >= target", fmt_percent(stats["prob_above_target"]))
+    else:
+        c5.metric("Windows below paid-in", fmt_percent(stats["prob_below_contribution"]))
 
 
-def build_distribution_chart(result: HistoricalSimulationResult, currency_symbol: str) -> go.Figure:
+def build_distribution_chart(result: HistoricalSimulationResult, currency_symbol: str, target_wealth: float) -> go.Figure:
     df = pd.DataFrame({"Final wealth": result.final_values})
     fig = px.histogram(df, x="Final wealth", nbins=36)
     fig.add_vline(x=float(result.stats["median"]), line_dash="dash", annotation_text="Median", annotation_position="top")
     fig.add_vline(x=float(result.stats["mean"]), line_dash="dot", annotation_text="Mean", annotation_position="top")
+    if target_wealth > 0:
+        fig.add_vline(x=float(target_wealth), line_dash="solid", annotation_text="Target", annotation_position="top right")
     fig.update_traces(hovertemplate=f"Final wealth={currency_symbol}%{{x:,.0f}}<br>Count=%{{y}}<extra></extra>")
-    fig.update_layout(
-        title="Distribution of ending wealth",
-        xaxis_title=f"Final wealth ({currency_symbol})",
-        yaxis_title="Count",
-        bargap=0.08,
-        margin=dict(l=10, r=10, t=50, b=10),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
+    fig.update_layout(title=f"Distribution of ending wealth - {result.years} years", xaxis_title=f"Final wealth ({currency_symbol})", yaxis_title="Rolling historical windows", bargap=0.08, margin=dict(l=10, r=10, t=50, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
 
 
-def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str) -> go.Figure:
+def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str, inflation_annual: float) -> go.Figure:
     fig = go.Figure()
-
-    fig.add_trace(
-        go.Scatter(
-            x=summary_df["years"],
-            y=summary_df["p10"],
-            mode="lines",
-            line=dict(width=0),
-            hoverinfo="skip",
-            showlegend=False,
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=summary_df["years"],
-            y=summary_df["p90"],
-            mode="lines",
-            line=dict(width=0),
-            fill="tonexty",
-            name="10th–90th percentile",
-            hovertemplate=f"Years=%{{x}}<br>Band upper={currency_symbol}%{{y:,.0f}}<extra></extra>",
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=summary_df["years"],
-            y=summary_df["median"],
-            mode="lines",
-            name="Median",
-            line=dict(shape="spline", smoothing=1.0, width=3),
-            hovertemplate=f"Years=%{{x}}<br>Median={currency_symbol}%{{y:,.0f}}<extra></extra>",
-        )
-    )
-    fig.add_trace(
-        go.Scatter(
-            x=summary_df["years"],
-            y=summary_df["mean"],
-            mode="lines",
-            name="Mean",
-            line=dict(shape="spline", smoothing=1.0, width=3, dash="dot"),
-            hovertemplate=f"Years=%{{x}}<br>Mean={currency_symbol}%{{y:,.0f}}<extra></extra>",
-        )
-    )
-
-    fig.update_layout(
-        title="Ending wealth across horizons",
-        xaxis_title="Investment horizon (years)",
-        yaxis_title=f"Final wealth ({currency_symbol})",
-        height=560,
-        hovermode="x unified",
-        legend=dict(
-            orientation="h",
-            yanchor="top",
-            y=-0.22,
-            xanchor="center",
-            x=0.5,
-            title=None,
-        ),
-        margin=dict(l=10, r=10, t=50, b=95),
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-    )
+    fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["p10"], mode="lines", line=dict(width=0), hoverinfo="skip", showlegend=False))
+    fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["p90"], mode="lines", line=dict(width=0), fill="tonexty", name="10th-90th percentile", hovertemplate=f"Years=%{{x}}<br>Band upper={currency_symbol}%{{y:,.0f}}<extra></extra>"))
+    fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["median"], mode="lines", name="Median nominal", line=dict(shape="spline", smoothing=1.0, width=3), hovertemplate=f"Years=%{{x}}<br>Median={currency_symbol}%{{y:,.0f}}<extra></extra>"))
+    fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["mean"], mode="lines", name="Mean nominal", line=dict(shape="spline", smoothing=1.0, width=3, dash="dot"), hovertemplate=f"Years=%{{x}}<br>Mean={currency_symbol}%{{y:,.0f}}<extra></extra>"))
+    if inflation_annual > 0:
+        fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["real_median"], mode="lines", name="Median real/today's money", line=dict(shape="spline", smoothing=1.0, width=3, dash="dash"), hovertemplate=f"Years=%{{x}}<br>Real median={currency_symbol}%{{y:,.0f}}<extra></extra>"))
+    fig.update_layout(title="Ending wealth across horizons", xaxis_title="Investment horizon (years)", yaxis_title=f"Final wealth ({currency_symbol})", height=580, hovermode="x unified", legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5, title=None), margin=dict(l=10, r=10, t=50, b=95), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
     return fig
+
+
+def render_dataset_diagnostics(base_returns_df: pd.DataFrame, returns_df: pd.DataFrame, selected_dataset: str, output_currency: str) -> None:
+    raw_returns = base_returns_df["return"].astype(float)
+    adjusted_returns = returns_df["return"].astype(float)
+    gross = (1.0 + adjusted_returns).cumprod()
+    max_dd = (gross / gross.cummax() - 1.0).min()
+    with st.expander("Dataset and robustness diagnostics", expanded=False):
+        c1, c2, c3, c4 = st.columns(4)
+        c1.metric("Data start", base_returns_df["date"].min().strftime("%Y-%m"))
+        c2.metric("Data end", base_returns_df["date"].max().strftime("%Y-%m"))
+        c3.metric("Months", f"{len(base_returns_df):,}")
+        c4.metric("Currency view", output_currency)
+        st.markdown(f"""
+**Dataset selected:** `{selected_dataset}`
+
+**Raw embedded return series**
+- Geometric annual return: **{safe_geo_return(raw_returns) * 100:.2f}%**
+- Average monthly return: **{raw_returns.mean() * 100:.2f}%**
+- Worst monthly return: **{raw_returns.min() * 100:.2f}%**
+- Best monthly return: **{raw_returns.max() * 100:.2f}%**
+
+**After selected currency adjustment**
+- Geometric annual return: **{safe_geo_return(adjusted_returns) * 100:.2f}%**
+- Annualised volatility: **{adjusted_returns.std(ddof=1) * np.sqrt(12) * 100:.2f}%**
+- Buy-and-hold max drawdown on monthly data: **{max_dd * 100:.2f}%**
+
+Important interpretation point: rolling windows are overlapping. They are useful historical scenarios, not independent probability trials.
+        """)
+
+
+def render_methodology_notes(contribution_timing_label: str, only_full_fx_windows: bool, inflation_annual: float, target_wealth: float) -> None:
+    with st.expander("Methodology notes and trust checklist", expanded=False):
+        st.markdown(f"""
+**What has been strengthened in this version**
+- Fixed the rolling-window off-by-one issue: the final valid rolling window is now included and the end date is the last month actually used.
+- Added contribution timing: **{contribution_timing_label}**.
+- Added a money-weighted return estimate for the median, 10th and 90th percentile outcomes.
+- Added FX full-coverage filtering: **{'enabled' if only_full_fx_windows else 'disabled'}**.
+- Added fee totals, portfolio drawdown, target-hit probability, and below-paid-in probability.
+- Added a simple real/today's-money view using assumed inflation of **{inflation_annual * 100:.2f}% per year**.
+
+**How to read the results**
+- The results are historical rolling scenarios, not forecasts.
+- The money-weighted return is more meaningful than the old paid-in CAGR when monthly contributions are used.
+- The drawdown shown is based on portfolio value after contributions and fees, so it is not identical to pure market drawdown.
+- If a target is set at **{target_wealth:,.0f}**, the probability is the share of historical rolling windows that ended above that target.
+
+**Still worth adding later if you want even stronger robustness**
+- CPI datasets instead of a manual inflation assumption.
+- Separate dividend, valuation and currency attribution.
+- Block-bootstrap Monte Carlo using historical monthly return blocks.
+- Regime split reports: pre-war, post-war, 1970s inflation, dot-com, GFC, COVID/2022.
+- Tax wrapper mode: ISA, SIPP, GIA.
+        """)
+
+
+def make_summary_table(summary_df: pd.DataFrame, currency_symbol: str, target_wealth: float, inflation_annual: float) -> pd.DataFrame:
+    columns = ["years", "count", "total_contribution", "p05", "p10", "median", "mean", "p90", "p95", "max", "real_median", "wealth_multiple_median", "paid_in_annualised_median", "mwr_median", "prob_below_contribution", "prob_above_target", "fees_median", "max_drawdown_median", "worst_start", "worst_end", "best_start", "best_end"]
+    table_df = summary_df[columns].copy()
+    for col in ["total_contribution", "p05", "p10", "median", "mean", "p90", "p95", "max", "real_median", "fees_median"]:
+        table_df[col] = table_df[col].map(lambda x: fmt_currency(x, currency_symbol))
+    table_df["wealth_multiple_median"] = table_df["wealth_multiple_median"].map(fmt_multiple)
+    for col in ["paid_in_annualised_median", "mwr_median", "prob_below_contribution", "prob_above_target", "max_drawdown_median"]:
+        table_df[col] = table_df[col].map(fmt_percent)
+    for col in ["worst_start", "worst_end", "best_start", "best_end"]:
+        table_df[col] = table_df[col].map(fmt_date)
+    return table_df.rename(columns={"years": "Years", "count": "Windows", "total_contribution": "Paid in", "p05": "P5", "p10": "P10", "median": "Median", "mean": "Mean", "p90": "P90", "p95": "P95", "max": "Max", "real_median": "Real median" if inflation_annual > 0 else "Median discounted", "wealth_multiple_median": "Median multiple", "paid_in_annualised_median": "Paid-in annualised", "mwr_median": "Median MWR", "prob_below_contribution": "Below paid-in", "prob_above_target": "Above target", "fees_median": "Median fees", "max_drawdown_median": "Median max DD", "worst_start": "Worst start", "worst_end": "Worst end", "best_start": "Best start", "best_end": "Best end"})
+
 
 def main() -> None:
     inject_css()
-    st.markdown(
-        """<div class="hero"><h1>SNP500 investment by Dimi</h1><p>A historical backtest of long-term investing in the S&P 500 by simulating how a portfolio would have evolved across many different starting points in time. Using monthly return data, it runs a rolling-window analysis where an initial investment, optionally combined with regular monthly contributions, is compounded over a chosen investment horizon (e.g. 30 years) for every possible start date in the dataset. Realistic fees are applied throughout, including fund and platform charges with minimums and caps. The model then aggregates all simulations to produce a distribution of outcomes, reporting key metrics such as median and average final wealth, percentile ranges, and compound annual growth rates. This allows the user to understand not just expected returns, but the full range of historical outcomes, highlighting the impact of timing, duration, contributions, and fees on long-term investment performance.</p></div>""",
-        unsafe_allow_html=True,
-    )
-
-    base_returns_df = load_returns_from_mat_bytes(load_embedded_dataset(DEFAULT_DATASET))
-    max_possible_years = max(5, (len(base_returns_df) - 1) // 12)
-    default_min = min(30, max_possible_years)
-    default_max = min(40, max_possible_years)
-    if default_min > default_max:
-        default_min = max(5, default_max - 5)
+    st.markdown("""<div class="hero"><h1>SNP500 investment studio</h1><p>A historical rolling-window study of long-term S&P 500 investing. This version adds stronger methodology controls: contribution timing, full FX coverage filtering, money-weighted return, fee totals, drawdown, real-value discounting and target-hit diagnostics.</p></div>""", unsafe_allow_html=True)
 
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.subheader("Study settings")
-    a, b, c, d = st.columns([1, 1, 1.2, 0.8])
-    output_currency = d.selectbox("Output currency", ["GBP", "USD", "EUR"], index=0)
+
+    top_a, top_b, top_c = st.columns([1.2, 0.8, 1.0])
+    selected_dataset = top_a.selectbox("Embedded dataset", list(EMBEDDED_DATASETS.keys()), index=list(EMBEDDED_DATASETS.keys()).index(DEFAULT_DATASET))
+    output_currency = top_b.selectbox("Output currency", ["GBP", "USD", "EUR"], index=0)
     currency_symbol = CURRENCY_CONFIG[output_currency]["symbol"]
-    initial_investment = a.number_input(f"Initial investment ({currency_symbol})", min_value=0.0, value=75000.0, step=5000.0)
-    monthly_contribution = b.number_input(f"Monthly contribution ({currency_symbol})", min_value=0.0, value=0.0, step=100.0)
-    year_range = c.slider(
-        "Investment horizon range (years)",
-        min_value=2,
-        max_value=int(max_possible_years),
-        value=(int(default_min), int(default_max)),
-    )
     currency_label = CURRENCY_CONFIG[output_currency]["label"]
 
-    with st.expander("Advanced fee settings", expanded=False):
+    base_returns_df = load_returns_from_mat_bytes(load_embedded_dataset(selected_dataset))
+    returns_df, fx_diag = apply_currency_adjustment(base_returns_df, output_currency)
+
+    with top_c:
+        only_full_fx_windows = st.checkbox("Use only full-FX-covered windows", value=(output_currency != "USD"), disabled=(output_currency == "USD"), help="Recommended for GBP/EUR. It avoids mixing true local-currency periods with older periods where FX data is missing.")
+
+    max_months_available = max_consecutive_true(returns_df["fx_covered"]) if only_full_fx_windows else len(returns_df)
+    max_possible_years = max(1, max_months_available // 12)
+    if max_possible_years < 2:
+        st.error("Not enough data is available for a 2-year rolling study with the current filters.")
+        st.stop()
+
+    default_min = min(30, max_possible_years)
+    default_max = min(40, max_possible_years)
+    if default_min > default_max:
+        default_min = max(2, default_max)
+
+    a, b, c = st.columns([1, 1, 1.2])
+    initial_investment = a.number_input(f"Initial investment ({currency_symbol})", min_value=0.0, value=75000.0, step=5000.0)
+    monthly_contribution = b.number_input(f"Monthly contribution ({currency_symbol})", min_value=0.0, value=0.0, step=100.0)
+    year_range = c.slider("Investment horizon range (years)", min_value=2, max_value=int(max_possible_years), value=(int(default_min), int(default_max)))
+
+    with st.expander("Advanced assumptions", expanded=False):
         e, f, g, h = st.columns(4)
         fund_fee_annual = e.number_input("Fund fee (% / year)", min_value=0.0, value=0.07, step=0.01) / 100.0
         platform_fee_annual = f.number_input("Platform fee (% / year)", min_value=0.0, value=0.15, step=0.01) / 100.0
         platform_fee_monthly_min = g.number_input(f"Platform minimum ({currency_symbol} / month)", min_value=0.0, value=4.0, step=0.5)
-        platform_fee_annual_cap = h.number_input(f"Platform cap ({currency_symbol} / year)", min_value=0.0, value=375.0, step=25.0)
-        featured_horizon = st.slider(
-            "Featured horizon for distribution chart (years)",
-            min_value=int(year_range[0]),
-            max_value=int(year_range[1]),
-            value=int(year_range[1]),
-        )
+        platform_fee_annual_cap = h.number_input(f"Platform cap ({currency_symbol} / year, 0 = no cap)", min_value=0.0, value=375.0, step=25.0)
+        i, j, k, l = st.columns(4)
+        contribution_timing_label = i.selectbox("Contribution timing", list(CONTRIBUTION_TIMING_OPTIONS.keys()), index=1)
+        contribution_timing = CONTRIBUTION_TIMING_OPTIONS[contribution_timing_label]
+        inflation_annual = j.number_input("Inflation for today's-money view (% / year)", min_value=0.0, value=2.5, step=0.25) / 100.0
+        target_wealth = k.number_input(f"Target wealth ({currency_symbol}, optional)", min_value=0.0, value=0.0, step=10000.0)
+        featured_horizon = l.slider("Featured horizon", min_value=int(year_range[0]), max_value=int(year_range[1]), value=int(year_range[1]))
     st.markdown('</div>', unsafe_allow_html=True)
 
-    returns_df, fx_diag = apply_currency_adjustment(base_returns_df, output_currency)
+    try:
+        horizon_results = [simulate_rolling_horizon(returns_df, yr, initial_investment, monthly_contribution, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap, contribution_timing, only_full_fx_windows, target_wealth, inflation_annual) for yr in range(int(year_range[0]), int(year_range[1]) + 1)]
+    except ValueError as exc:
+        st.error(str(exc))
+        st.stop()
 
-    horizon_results = [
-        simulate_rolling_horizon(
-            returns_df,
-            yr,
-            initial_investment,
-            monthly_contribution,
-            fund_fee_annual,
-            platform_fee_annual,
-            platform_fee_monthly_min,
-            platform_fee_annual_cap,
-        )
-        for yr in range(int(year_range[0]), int(year_range[1]) + 1)
-    ]
     summary_df = pd.DataFrame([{"years": r.years, **r.stats.to_dict()} for r in horizon_results])
     primary = next(r for r in horizon_results if r.years == int(featured_horizon))
 
-    render_metric_cards(primary.stats, currency_symbol)
-    render_fx_diagnostics(fx_diag, currency_symbol)
+    render_metric_cards(primary.stats, currency_symbol, target_wealth, inflation_annual)
 
     left, right = st.columns([1.1, 1.2])
     with left:
-        st.plotly_chart(build_distribution_chart(primary, currency_symbol), width="stretch", theme="streamlit")
+        st.plotly_chart(build_distribution_chart(primary, currency_symbol, target_wealth), width="stretch", theme="streamlit")
     with right:
-        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol), width="stretch", theme="streamlit")
+        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol, inflation_annual), width="stretch", theme="streamlit")
+
+    render_fx_diagnostics(fx_diag, only_full_fx_windows)
+    render_dataset_diagnostics(base_returns_df, returns_df, selected_dataset, output_currency)
+    render_methodology_notes(contribution_timing_label, only_full_fx_windows, inflation_annual, target_wealth)
 
     st.subheader("Summary table")
-    table_df = summary_df[["years", "total_contribution", "min", "p10", "median", "mean", "p90", "max", "wealth_multiple_median", "cagr_median"]].copy()
-    for col in ["total_contribution", "min", "p10", "median", "mean", "p90", "max"]:
-        table_df[col] = table_df[col].map(lambda x: fmt_currency(x, currency_symbol))
-    table_df["wealth_multiple_median"] = table_df["wealth_multiple_median"].map(lambda x: f"{x:.2f}x")
-    table_df["cagr_median"] = table_df["cagr_median"].map(lambda x: f"{x*100:.2f}%")
+    table_df = make_summary_table(summary_df, currency_symbol, target_wealth, inflation_annual)
     st.dataframe(table_df, width="stretch", hide_index=True)
-    st.download_button(
-        "Download summary CSV",
-        summary_df.to_csv(index=False).encode("utf-8"),
-        file_name="historical_summary_statistics.csv",
-        mime="text/csv",
-    )
-    st.caption(
-        f"Embedded dataset: Washington MAT series. Output currency: {currency_label}. "
-        f"Horizon range shown: {int(year_range[0])} to {int(year_range[1])} years."
-    )
+
+    csv_df = summary_df.copy()
+    for col in ["worst_start", "worst_end", "best_start", "best_end"]:
+        csv_df[col] = pd.to_datetime(csv_df[col]).dt.strftime("%Y-%m-%d")
+    st.download_button("Download summary CSV", csv_df.to_csv(index=False).encode("utf-8"), file_name="historical_summary_statistics_robust.csv", mime="text/csv")
+    st.caption(f"Embedded dataset: {selected_dataset}. Output currency: {currency_label}. Horizon range shown: {int(year_range[0])} to {int(year_range[1])} years. Results are historical rolling scenarios, not forecasts or financial advice.")
 
 
 if __name__ == "__main__":
