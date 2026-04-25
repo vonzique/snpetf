@@ -65,6 +65,26 @@ CONTRIBUTION_TIMING_OPTIONS = {
     "End of month (conservative)": "end",
 }
 
+CONTRIBUTION_GROWTH_OPTIONS = {
+    "Fixed nominal contribution": "fixed",
+    "Increase with CPI where available": "cpi",
+    "Increase by custom annual rate": "custom",
+}
+
+MC_SAMPLE_POOL_OPTIONS = {
+    "Selected active sample": "active",
+    "Modern era only (1990+ within active sample)": "modern_1990",
+    "Post-1973 only (within active sample)": "post_1973",
+    "High-inflation months only (CPI >= 5%)": "high_inflation",
+    "Stress/crisis months only": "crisis",
+}
+
+MC_FORECAST_MODE_OPTIONS = {
+    "Historical bootstrap, no return anchor": "historical",
+    "Forward-return adjusted": "forward",
+    "CAPE / valuation-adjusted": "cape",
+}
+
 LATEST_DATASET_LABEL = DEFAULT_DATASET
 
 ADVANCED_REGIMES = [
@@ -691,6 +711,116 @@ def annual_rate_to_monthly_rate(annual_rate: float) -> float:
     return (1.0 + annual_rate) ** (1.0 / 12.0) - 1.0
 
 
+def make_contribution_schedule(
+    months: int,
+    monthly_contribution: float,
+    contribution_growth_mode: str = "fixed",
+    contribution_growth_annual: float = 0.0,
+    monthly_inflation: np.ndarray | None = None,
+) -> np.ndarray:
+    """Return the nominal contribution made in each simulated month.
+
+    fixed  = same cash amount every month.
+    custom = contribution rises by the selected annual growth rate.
+    cpi    = contribution rises with the realised CPI path where available,
+             otherwise it falls back to the custom annual growth rate.
+    """
+    months = int(months)
+    if months <= 0:
+        return np.array([], dtype=float)
+
+    base = max(0.0, float(monthly_contribution))
+    if base == 0.0:
+        return np.zeros(months, dtype=float)
+
+    mode = str(contribution_growth_mode or "fixed")
+    if mode == "fixed":
+        return np.full(months, base, dtype=float)
+
+    contrib = np.empty(months, dtype=float)
+    contrib[0] = base
+
+    if mode == "cpi" and monthly_inflation is not None:
+        infl = np.asarray(monthly_inflation, dtype=float)
+        if len(infl) >= months and np.isfinite(infl[:months]).all():
+            for i in range(1, months):
+                contrib[i] = contrib[i - 1] * max(0.0, 1.0 + float(infl[i - 1]))
+            return contrib
+
+    monthly_growth = annual_rate_to_monthly_rate(float(contribution_growth_annual))
+    for i in range(1, months):
+        contrib[i] = contrib[i - 1] * (1.0 + monthly_growth)
+    return contrib
+
+
+def annualised_geometric_return(returns: pd.Series | np.ndarray) -> float:
+    arr = np.asarray(returns, dtype=float)
+    arr = arr[np.isfinite(arr)]
+    if len(arr) == 0 or np.any(1.0 + arr <= 0):
+        return float("nan")
+    return float(np.prod(1.0 + arr) ** (12.0 / len(arr)) - 1.0)
+
+
+def valuation_adjusted_expected_return(
+    historical_geo_return: float,
+    current_cape: float,
+    fair_cape: float,
+    cape_sensitivity: float,
+) -> float:
+    """Simple valuation anchor: high CAPE reduces the forward return assumption.
+
+    This is intentionally transparent rather than over-fitted. Example: if
+    current CAPE is above the fair/long-run CAPE, the expected annual return is
+    reduced by sensitivity × log(current/fair).
+    """
+    if not np.isfinite(historical_geo_return):
+        historical_geo_return = 0.07
+    if current_cape <= 0 or fair_cape <= 0 or cape_sensitivity == 0:
+        return float(historical_geo_return)
+    adj = float(cape_sensitivity) * float(np.log(current_cape / fair_cape))
+    return float(np.clip(historical_geo_return - adj, -0.50, 0.50))
+
+
+def shift_returns_to_target_annual_return(path_returns: np.ndarray, target_annual_return: float) -> np.ndarray:
+    """Shift monthly log returns so the path's annualised return matches an anchor.
+
+    This preserves the sequence shape and volatility clusters while making the
+    Monte Carlo path consistent with a forward-looking expected-return view.
+    """
+    arr = np.asarray(path_returns, dtype=float)
+    if not np.isfinite(target_annual_return) or target_annual_return <= -0.95:
+        return arr
+    gross = 1.0 + arr
+    if len(arr) == 0 or np.any(gross <= 0) or not np.isfinite(gross).all():
+        return arr
+    target_monthly_log = np.log1p(float(target_annual_return)) / 12.0
+    current_monthly_log = float(np.mean(np.log(gross)))
+    shifted = np.exp(np.log(gross) + (target_monthly_log - current_monthly_log)) - 1.0
+    return np.clip(shifted, -0.95, 5.0)
+
+
+def filter_monte_carlo_sample_pool(returns_df: pd.DataFrame, sample_pool_mode: str) -> pd.DataFrame:
+    """Apply an optional conditional sample pool for Monte Carlo.
+
+    The selected study start still controls the base sample. These modes then
+    narrow the bootstrap pool to periods that better represent the desired
+    forecast condition.
+    """
+    mode = str(sample_pool_mode or "active")
+    data = returns_df.copy().reset_index(drop=True)
+    if mode == "modern_1990":
+        data = data.loc[data["date"] >= pd.Timestamp(1990, 1, 1)]
+    elif mode == "post_1973":
+        data = data.loc[data["date"] >= pd.Timestamp(1973, 1, 1)]
+    elif mode == "high_inflation":
+        if "cpi_annual_pct" in data.columns:
+            data = data.loc[pd.to_numeric(data["cpi_annual_pct"], errors="coerce") >= 5.0]
+    elif mode == "crisis":
+        trailing_12m = (1.0 + data["return"].astype(float)).rolling(12).apply(np.prod, raw=True) - 1.0
+        data = data.loc[(trailing_12m <= 0.0) | (data["return"].astype(float) <= -0.05)]
+    return data.reset_index(drop=True)
+
+
 def apply_period_fee(portfolio_value: float, fund_fee_annual: float, platform_fee_annual: float, platform_fee_monthly_min: float, platform_fee_annual_cap: float) -> tuple[float, float]:
     if portfolio_value <= 0:
         return 0.0, 0.0
@@ -714,31 +844,40 @@ def max_consecutive_true(values: pd.Series | np.ndarray) -> int:
     return best
 
 
-def cashflow_irr_from_final_value(final_value: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str) -> float:
-    """Estimate annual money-weighted return from regular monthly cashflows.
-
-    The previous implementation solved directly for a monthly rate and tested a
-    lower bound extremely close to -100% per month. For long horizons this can
-    make (1 + r) ** month underflow to zero, causing a ZeroDivisionError.
-    This version solves for an annual rate, converts it to the equivalent
-    monthly discount factor, and evaluates NPV using Horner recursion rather
-    than explicit powers.
-    """
+def cashflow_irr_from_final_value(
+    final_value: float,
+    years: int,
+    initial_investment: float,
+    monthly_contribution: float,
+    contribution_timing: str,
+    contribution_growth_mode: str = "fixed",
+    contribution_growth_annual: float = 0.0,
+    monthly_inflation: np.ndarray | None = None,
+) -> float:
+    """Estimate annual money-weighted return from regular monthly cashflows."""
     months = int(years * 12)
     if months <= 0 or not np.isfinite(final_value) or final_value <= 0:
         return float("nan")
 
+    contributions = make_contribution_schedule(
+        months,
+        monthly_contribution,
+        contribution_growth_mode,
+        contribution_growth_annual,
+        monthly_inflation,
+    )
     initial_investment = float(initial_investment)
-    monthly_contribution = float(monthly_contribution)
 
     if contribution_timing == "start":
-        flows = [-(initial_investment + monthly_contribution)]
-        flows.extend([-monthly_contribution] * max(0, months - 1))
+        first = contributions[0] if len(contributions) else 0.0
+        flows = [-(initial_investment + first)]
+        flows.extend([-float(x) for x in contributions[1:]])
         flows.append(float(final_value))
     else:
+        last = contributions[-1] if len(contributions) else 0.0
         flows = [-initial_investment]
-        flows.extend([-monthly_contribution] * max(0, months - 1))
-        flows.append(float(final_value) - monthly_contribution)
+        flows.extend([-float(x) for x in contributions[:-1]])
+        flows.append(float(final_value) - float(last))
 
     if not any(f < 0 for f in flows) or not any(f > 0 for f in flows):
         return float("nan")
@@ -750,8 +889,6 @@ def cashflow_irr_from_final_value(final_value: float, years: int, initial_invest
         if not np.isfinite(monthly_discount) or monthly_discount <= 0.0:
             return float("nan")
 
-        # Horner-style evaluation of sum(cf_i / monthly_discount**i).
-        # This avoids the long-horizon underflow/overflow risk from explicit powers.
         acc = 0.0
         for cf in reversed(flows):
             acc = cf + acc / monthly_discount
@@ -759,7 +896,7 @@ def cashflow_irr_from_final_value(final_value: float, years: int, initial_invest
                 return float("inf") if acc > 0 else float("-inf")
         return float(acc)
 
-    low, high = -0.999, 1.0  # annual-rate bounds: -99.9% to +100%
+    low, high = -0.999, 1.0
     npv_low, npv_high = npv_from_annual_rate(low), npv_from_annual_rate(high)
 
     for _ in range(30):
@@ -789,13 +926,18 @@ def cashflow_irr_from_final_value(final_value: float, years: int, initial_invest
 
     return float((low + high) / 2.0)
 
-
-def summarise_distribution(final_values: pd.Series, real_final_values: pd.Series, start_dates: pd.Series, end_dates: pd.Series, total_contribution: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str, total_fees: pd.Series, max_drawdowns: pd.Series, target_wealth: float) -> pd.Series:
+def summarise_distribution(final_values: pd.Series, real_final_values: pd.Series, start_dates: pd.Series, end_dates: pd.Series, total_contribution: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str, total_fees: pd.Series, max_drawdowns: pd.Series, target_wealth: float, contribution_growth_mode: str = "fixed", contribution_growth_annual: float = 0.0) -> pd.Series:
     if final_values.empty:
         raise ValueError("No valid rolling windows were available for this horizon and filter combination.")
 
-    wealth_multiple = final_values / total_contribution if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
-    paid_in_annualised = (wealth_multiple ** (1 / years) - 1) if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
+    if isinstance(total_contribution, (pd.Series, np.ndarray, list, tuple)):
+        total_contribution_s = pd.Series(total_contribution, index=final_values.index, dtype="float64")
+        typical_total_contribution = float(total_contribution_s.median()) if total_contribution_s.notna().any() else float("nan")
+    else:
+        typical_total_contribution = float(total_contribution)
+        total_contribution_s = pd.Series(typical_total_contribution, index=final_values.index, dtype="float64")
+    wealth_multiple = final_values / total_contribution_s.replace(0, np.nan)
+    paid_in_annualised = wealth_multiple ** (1 / years) - 1
     real_values = pd.Series(real_final_values, dtype="float64")
     real_count = int(real_values.notna().sum())
     real_coverage_share = float(real_values.notna().mean()) if len(real_values) else float("nan")
@@ -810,7 +952,7 @@ def summarise_distribution(final_values: pd.Series, real_final_values: pd.Series
         "count": int(final_values.count()),
         "real_count": real_count,
         "cpi_coverage_share": real_coverage_share,
-        "total_contribution": float(total_contribution),
+        "total_contribution": typical_total_contribution,
         "min": float(final_values.min()),
         "p05": float(final_values.quantile(0.05)),
         "p10": p10_final,
@@ -823,12 +965,12 @@ def summarise_distribution(final_values: pd.Series, real_final_values: pd.Series
         "real_p10": float(real_values.quantile(0.10)) if real_count else float("nan"),
         "real_median": float(real_values.median()) if real_count else float("nan"),
         "real_p90": float(real_values.quantile(0.90)) if real_count else float("nan"),
-        "wealth_multiple_median": float(wealth_multiple.median()) if total_contribution > 0 else float("nan"),
-        "paid_in_annualised_median": float(paid_in_annualised.median()) if total_contribution > 0 else float("nan"),
-        "mwr_p10": cashflow_irr_from_final_value(p10_final, years, initial_investment, monthly_contribution, contribution_timing),
-        "mwr_median": cashflow_irr_from_final_value(median_final, years, initial_investment, monthly_contribution, contribution_timing),
-        "mwr_p90": cashflow_irr_from_final_value(p90_final, years, initial_investment, monthly_contribution, contribution_timing),
-        "prob_below_contribution": float((final_values < total_contribution).mean()) if total_contribution > 0 else float("nan"),
+        "wealth_multiple_median": float(wealth_multiple.median()),
+        "paid_in_annualised_median": float(paid_in_annualised.median()),
+        "mwr_p10": cashflow_irr_from_final_value(p10_final, years, initial_investment, monthly_contribution, contribution_timing, contribution_growth_mode, contribution_growth_annual),
+        "mwr_median": cashflow_irr_from_final_value(median_final, years, initial_investment, monthly_contribution, contribution_timing, contribution_growth_mode, contribution_growth_annual),
+        "mwr_p90": cashflow_irr_from_final_value(p90_final, years, initial_investment, monthly_contribution, contribution_timing, contribution_growth_mode, contribution_growth_annual),
+        "prob_below_contribution": float((final_values < total_contribution_s).mean()) if total_contribution_s.notna().any() else float("nan"),
         "prob_above_target": float((final_values >= target_wealth).mean()) if target_wealth > 0 else float("nan"),
         "fees_median": float(total_fees.median()),
         "fees_mean": float(total_fees.mean()),
@@ -841,13 +983,13 @@ def summarise_distribution(final_values: pd.Series, real_final_values: pd.Series
     })
 
 
-def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_investment: float, monthly_contribution: float, fund_fee_annual: float, platform_fee_annual: float, platform_fee_monthly_min: float, platform_fee_annual_cap: float, contribution_timing: str, only_full_fx_windows: bool, target_wealth: float) -> HistoricalSimulationResult:
+def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_investment: float, monthly_contribution: float, fund_fee_annual: float, platform_fee_annual: float, platform_fee_monthly_min: float, platform_fee_annual_cap: float, contribution_timing: str, only_full_fx_windows: bool, target_wealth: float, contribution_growth_mode: str = "fixed", contribution_growth_annual: float = 0.0, extra_tracking_drag_annual: float = 0.0) -> HistoricalSimulationResult:
     months = years * 12
     n = len(returns_df)
     if n < months:
         raise ValueError(f"Dataset has {n} rows, but needs at least {months} rows for a {years}-year rolling study.")
 
-    final_values, real_final_values, start_dates, end_dates, total_fees_all, max_drawdowns_all = [], [], [], [], [], []
+    final_values, real_final_values, start_dates, end_dates, total_fees_all, max_drawdowns_all, total_contributions_all = [], [], [], [], [], [], []
     returns = returns_df["return"].to_numpy(dtype=float)
     fx_covered = returns_df.get("fx_covered", pd.Series(True, index=returns_df.index)).to_numpy(dtype=bool)
     monthly_inflation = returns_df.get("monthly_inflation", pd.Series(np.nan, index=returns_df.index)).to_numpy(dtype=float)
@@ -863,20 +1005,30 @@ def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_inves
         peak = max(portfolio, 1e-12)
         max_dd = 0.0
 
-        for t in range(start_idx, end_idx):
+        window_inflation = monthly_inflation[start_idx:end_idx]
+        contribution_schedule = make_contribution_schedule(
+            months,
+            monthly_contribution,
+            contribution_growth_mode,
+            contribution_growth_annual,
+            window_inflation,
+        )
+
+        for local_i, t in enumerate(range(start_idx, end_idx)):
+            contribution = float(contribution_schedule[local_i])
             if contribution_timing == "start":
-                portfolio += monthly_contribution
+                portfolio += contribution
                 portfolio *= (1.0 + returns[t])
-                portfolio, fee_paid = apply_period_fee(portfolio, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap)
+                portfolio, fee_paid = apply_period_fee(portfolio, fund_fee_annual + extra_tracking_drag_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap)
             else:
                 portfolio *= (1.0 + returns[t])
-                portfolio, fee_paid = apply_period_fee(portfolio, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap)
-                portfolio += monthly_contribution
+                portfolio, fee_paid = apply_period_fee(portfolio, fund_fee_annual + extra_tracking_drag_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap)
+                portfolio += contribution
             total_fees_paid += fee_paid
             peak = max(peak, portfolio, 1e-12)
             max_dd = min(max_dd, (portfolio / peak) - 1.0)
 
-        inflation_factor = cumulative_inflation_factor(monthly_inflation[start_idx:end_idx])
+        inflation_factor = cumulative_inflation_factor(window_inflation)
         real_portfolio = portfolio / inflation_factor if np.isfinite(inflation_factor) and inflation_factor > 0 else float("nan")
 
         final_values.append(portfolio)
@@ -885,6 +1037,7 @@ def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_inves
         end_dates.append(dates.iloc[end_idx - 1])
         total_fees_all.append(total_fees_paid)
         max_drawdowns_all.append(max_dd)
+        total_contributions_all.append(float(initial_investment) + float(contribution_schedule.sum()))
 
     if not final_values:
         raise ValueError(f"No valid {years}-year rolling windows after applying the FX coverage filter. Reduce the horizon, switch currency, or disable the full-FX-coverage filter.")
@@ -895,9 +1048,10 @@ def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_inves
     end_dates_s = pd.Series(end_dates, name="end_date")
     total_fees_s = pd.Series(total_fees_all, name="total_fees")
     max_drawdowns_s = pd.Series(max_drawdowns_all, name="max_drawdown")
-    total_contribution = initial_investment + monthly_contribution * months
+    total_contributions_s = pd.Series(total_contributions_all, name="total_contribution")
+    total_contribution = float(total_contributions_s.median())
 
-    stats = summarise_distribution(final_values_s, real_final_values_s, start_dates_s, end_dates_s, float(total_contribution), years, initial_investment, monthly_contribution, contribution_timing, total_fees_s, max_drawdowns_s, target_wealth)
+    stats = summarise_distribution(final_values_s, real_final_values_s, start_dates_s, end_dates_s, total_contributions_s, years, initial_investment, monthly_contribution, contribution_timing, total_fees_s, max_drawdowns_s, target_wealth, contribution_growth_mode, contribution_growth_annual)
     return HistoricalSimulationResult(years, float(total_contribution), start_dates_s, end_dates_s, final_values_s, real_final_values_s, total_fees_s, max_drawdowns_s, stats)
 
 
@@ -910,20 +1064,33 @@ def simulate_path_from_returns(
     platform_fee_monthly_min: float,
     platform_fee_annual_cap: float,
     contribution_timing: str,
-) -> tuple[float, float, float]:
-    """Run one portfolio path and return final value, total fees and max drawdown."""
+    contribution_growth_mode: str = "fixed",
+    contribution_growth_annual: float = 0.0,
+    monthly_inflation: np.ndarray | None = None,
+    extra_tracking_drag_annual: float = 0.0,
+) -> tuple[float, float, float, float]:
+    """Run one portfolio path and return final value, total fees, max drawdown and total paid in."""
+    path_returns = np.asarray(path_returns, dtype=float)
+    contribution_schedule = make_contribution_schedule(
+        len(path_returns),
+        monthly_contribution,
+        contribution_growth_mode,
+        contribution_growth_annual,
+        monthly_inflation,
+    )
     portfolio = float(initial_investment)
     total_fees_paid = 0.0
     peak = max(portfolio, 1e-12)
     max_dd = 0.0
 
-    for ret in np.asarray(path_returns, dtype=float):
+    for i, ret in enumerate(path_returns):
+        contribution = float(contribution_schedule[i])
         if contribution_timing == "start":
-            portfolio += monthly_contribution
+            portfolio += contribution
             portfolio *= (1.0 + float(ret))
             portfolio, fee_paid = apply_period_fee(
                 portfolio,
-                fund_fee_annual,
+                fund_fee_annual + extra_tracking_drag_annual,
                 platform_fee_annual,
                 platform_fee_monthly_min,
                 platform_fee_annual_cap,
@@ -932,19 +1099,19 @@ def simulate_path_from_returns(
             portfolio *= (1.0 + float(ret))
             portfolio, fee_paid = apply_period_fee(
                 portfolio,
-                fund_fee_annual,
+                fund_fee_annual + extra_tracking_drag_annual,
                 platform_fee_annual,
                 platform_fee_monthly_min,
                 platform_fee_annual_cap,
             )
-            portfolio += monthly_contribution
+            portfolio += contribution
 
         total_fees_paid += fee_paid
         peak = max(peak, portfolio, 1e-12)
         max_dd = min(max_dd, (portfolio / peak) - 1.0)
 
-    return float(portfolio), float(total_fees_paid), float(max_dd)
-
+    total_paid_in = float(initial_investment) + float(contribution_schedule.sum())
+    return float(portfolio), float(total_fees_paid), float(max_dd), total_paid_in
 
 def summarise_monte_carlo_distribution(
     final_values: pd.Series,
@@ -957,12 +1124,20 @@ def summarise_monte_carlo_distribution(
     total_fees: pd.Series,
     max_drawdowns: pd.Series,
     target_wealth: float,
+    contribution_growth_mode: str = "fixed",
+    contribution_growth_annual: float = 0.0,
 ) -> pd.Series:
     if final_values.empty:
         raise ValueError("No Monte Carlo paths were generated.")
 
-    wealth_multiple = final_values / total_contribution if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
-    paid_in_annualised = (wealth_multiple ** (1 / years) - 1) if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
+    if isinstance(total_contribution, (pd.Series, np.ndarray, list, tuple)):
+        total_contribution_s = pd.Series(total_contribution, index=final_values.index, dtype="float64")
+        typical_total_contribution = float(total_contribution_s.median()) if total_contribution_s.notna().any() else float("nan")
+    else:
+        typical_total_contribution = float(total_contribution)
+        total_contribution_s = pd.Series(typical_total_contribution, index=final_values.index, dtype="float64")
+    wealth_multiple = final_values / total_contribution_s.replace(0, np.nan)
+    paid_in_annualised = wealth_multiple ** (1 / years) - 1
     real_values = pd.Series(real_final_values, dtype="float64")
     real_count = int(real_values.notna().sum())
     real_coverage_share = float(real_values.notna().mean()) if len(real_values) else float("nan")
@@ -975,7 +1150,7 @@ def summarise_monte_carlo_distribution(
         "count": int(final_values.count()),
         "real_count": real_count,
         "cpi_coverage_share": real_coverage_share,
-        "total_contribution": float(total_contribution),
+        "total_contribution": typical_total_contribution,
         "min": float(final_values.min()),
         "p05": float(final_values.quantile(0.05)),
         "p10": p10_final,
@@ -988,12 +1163,12 @@ def summarise_monte_carlo_distribution(
         "real_p10": float(real_values.quantile(0.10)) if real_count else float("nan"),
         "real_median": float(real_values.median()) if real_count else float("nan"),
         "real_p90": float(real_values.quantile(0.90)) if real_count else float("nan"),
-        "wealth_multiple_median": float(wealth_multiple.median()) if total_contribution > 0 else float("nan"),
-        "paid_in_annualised_median": float(paid_in_annualised.median()) if total_contribution > 0 else float("nan"),
-        "mwr_p10": cashflow_irr_from_final_value(p10_final, years, initial_investment, monthly_contribution, contribution_timing),
-        "mwr_median": cashflow_irr_from_final_value(median_final, years, initial_investment, monthly_contribution, contribution_timing),
-        "mwr_p90": cashflow_irr_from_final_value(p90_final, years, initial_investment, monthly_contribution, contribution_timing),
-        "prob_below_contribution": float((final_values < total_contribution).mean()) if total_contribution > 0 else float("nan"),
+        "wealth_multiple_median": float(wealth_multiple.median()),
+        "paid_in_annualised_median": float(paid_in_annualised.median()),
+        "mwr_p10": cashflow_irr_from_final_value(p10_final, years, initial_investment, monthly_contribution, contribution_timing, contribution_growth_mode, contribution_growth_annual),
+        "mwr_median": cashflow_irr_from_final_value(median_final, years, initial_investment, monthly_contribution, contribution_timing, contribution_growth_mode, contribution_growth_annual),
+        "mwr_p90": cashflow_irr_from_final_value(p90_final, years, initial_investment, monthly_contribution, contribution_timing, contribution_growth_mode, contribution_growth_annual),
+        "prob_below_contribution": float((final_values < total_contribution_s).mean()) if total_contribution_s.notna().any() else float("nan"),
         "prob_above_target": float((final_values >= target_wealth).mean()) if target_wealth > 0 else float("nan"),
         "fees_median": float(total_fees.median()),
         "fees_mean": float(total_fees.mean()),
@@ -1017,6 +1192,12 @@ def simulate_monte_carlo_block_bootstrap(
     n_simulations: int,
     block_months: int,
     random_seed: int,
+    sample_pool_mode: str = "active",
+    forecast_mode: str = "historical",
+    target_return_annual: float | None = None,
+    contribution_growth_mode: str = "fixed",
+    contribution_growth_annual: float = 0.0,
+    extra_tracking_drag_annual: float = 0.0,
 ) -> MonteCarloSimulationResult:
     """Block-bootstrap Monte Carlo using historical monthly returns and matching CPI months where available."""
     months = int(years * 12)
@@ -1034,6 +1215,7 @@ def simulate_monte_carlo_block_bootstrap(
     if only_full_fx_windows:
         data = data.loc[data.get("fx_covered", pd.Series(True, index=data.index)).astype(bool)].reset_index(drop=True)
 
+    data = filter_monte_carlo_sample_pool(data, sample_pool_mode)
     data = data.dropna(subset=["return"]).reset_index(drop=True)
     available_returns = data["return"].to_numpy(dtype=float)
     available_inflation = data.get("monthly_inflation", pd.Series(np.nan, index=data.index)).to_numpy(dtype=float)
@@ -1041,12 +1223,12 @@ def simulate_monte_carlo_block_bootstrap(
     if n < block_months:
         raise ValueError(
             f"Not enough monthly returns for a {block_months}-month bootstrap block after filters. "
-            "Reduce the block length, disable full-FX coverage, or choose a longer sample."
+            "Reduce the block length, choose a broader Monte Carlo sample pool, disable full-FX coverage, or choose a longer sample."
         )
 
     rng = np.random.default_rng(int(random_seed))
     max_start = n - block_months + 1
-    final_values, real_final_values, total_fees_all, max_drawdowns_all = [], [], [], []
+    final_values, real_final_values, total_fees_all, max_drawdowns_all, total_contributions_all = [], [], [], [], []
 
     for _ in range(n_simulations):
         sampled_returns = []
@@ -1057,7 +1239,11 @@ def simulate_monte_carlo_block_bootstrap(
             sampled_inflation.extend(available_inflation[start:start + block_months])
         path_returns = np.asarray(sampled_returns[:months], dtype=float)
         path_inflation = np.asarray(sampled_inflation[:months], dtype=float)
-        final_value, fees_paid, max_dd = simulate_path_from_returns(
+
+        if forecast_mode in {"forward", "cape"} and target_return_annual is not None and np.isfinite(target_return_annual):
+            path_returns = shift_returns_to_target_annual_return(path_returns, float(target_return_annual))
+
+        final_value, fees_paid, max_dd, total_paid_in = simulate_path_from_returns(
             path_returns,
             initial_investment,
             monthly_contribution,
@@ -1066,6 +1252,10 @@ def simulate_monte_carlo_block_bootstrap(
             platform_fee_monthly_min,
             platform_fee_annual_cap,
             contribution_timing,
+            contribution_growth_mode,
+            contribution_growth_annual,
+            path_inflation,
+            extra_tracking_drag_annual,
         )
         inflation_factor = cumulative_inflation_factor(path_inflation)
         real_value = final_value / inflation_factor if np.isfinite(inflation_factor) and inflation_factor > 0 else float("nan")
@@ -1073,16 +1263,18 @@ def simulate_monte_carlo_block_bootstrap(
         real_final_values.append(real_value)
         total_fees_all.append(fees_paid)
         max_drawdowns_all.append(max_dd)
+        total_contributions_all.append(total_paid_in)
 
     final_values_s = pd.Series(final_values, name="final_value")
     real_final_values_s = pd.Series(real_final_values, name="real_final_value")
     total_fees_s = pd.Series(total_fees_all, name="total_fees")
     max_drawdowns_s = pd.Series(max_drawdowns_all, name="max_drawdown")
-    total_contribution = initial_investment + monthly_contribution * months
+    total_contributions_s = pd.Series(total_contributions_all, name="total_contribution")
+    total_contribution = float(total_contributions_s.median())
     stats = summarise_monte_carlo_distribution(
         final_values_s,
         real_final_values_s,
-        float(total_contribution),
+        total_contributions_s,
         years,
         initial_investment,
         monthly_contribution,
@@ -1090,6 +1282,8 @@ def simulate_monte_carlo_block_bootstrap(
         total_fees_s,
         max_drawdowns_s,
         target_wealth,
+        contribution_growth_mode,
+        contribution_growth_annual,
     )
     return MonteCarloSimulationResult(
         years=years,
@@ -1102,7 +1296,6 @@ def simulate_monte_carlo_block_bootstrap(
         simulations=n_simulations,
         block_months=block_months,
     )
-
 
 def fmt_currency(value: float, currency_symbol: str) -> str:
     if pd.isna(value):
@@ -1152,7 +1345,7 @@ def render_metric_cards(stats: pd.Series, currency_symbol: str, target_wealth: f
     range_value = f"{fmt_currency(stats['p10'], currency_symbol)} → {fmt_currency(stats['p90'], currency_symbol)}"
     third_label = "Median CPI-adjusted"
     third_value = fmt_currency(stats.get("real_median", float("nan")), currency_symbol)
-    fifth_label = "Windows above target" if target_wealth > 0 else "Windows below paid-in"
+    fifth_label = "Historical windows above target" if target_wealth > 0 else "Historical windows below paid-in"
     fifth_value = fmt_percent(stats["prob_above_target"]) if target_wealth > 0 else fmt_percent(stats["prob_below_contribution"])
 
     html = "".join([
@@ -1160,7 +1353,7 @@ def render_metric_cards(stats: pd.Series, currency_symbol: str, target_wealth: f
         _metric_card("10th → 90th range", range_value, "Central historical outcome band.", wide=True),
         _metric_card(third_label, third_value, f"Historical CPI where covered · {int(stats.get('real_count', 0)):,} windows."),
         _metric_card("Median MWR", fmt_percent(stats["mwr_median"]), "Money-weighted annual return estimate."),
-        _metric_card(fifth_label, fifth_value, "Share of historical windows."),
+        _metric_card(fifth_label, fifth_value, "Share of historical rolling windows."),
     ])
     st.markdown(f'<div class="kpi-grid">{html}</div>', unsafe_allow_html=True)
 
@@ -1253,7 +1446,7 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str) -> go.Fi
 def render_monte_carlo_metric_cards(mc_result: MonteCarloSimulationResult, currency_symbol: str, target_wealth: float) -> None:
     stats = mc_result.stats
     range_value = f"{fmt_currency(stats['p10'], currency_symbol)} → {fmt_currency(stats['p90'], currency_symbol)}"
-    fifth_label = "MC paths above target" if target_wealth > 0 else "MC paths below paid-in"
+    fifth_label = "MC model-estimated above target" if target_wealth > 0 else "MC model-estimated below paid-in"
     fifth_value = fmt_percent(stats["prob_above_target"]) if target_wealth > 0 else fmt_percent(stats["prob_below_contribution"])
 
     html = "".join([
@@ -1261,7 +1454,7 @@ def render_monte_carlo_metric_cards(mc_result: MonteCarloSimulationResult, curre
         _metric_card("MC 10th → 90th range", range_value, f"{mc_result.block_months}-month blocks.", wide=True),
         _metric_card("MC median CPI-adjusted", fmt_currency(stats.get("real_median", float("nan")), currency_symbol), f"Historical CPI where covered · {int(stats.get('real_count', 0)):,} paths."),
         _metric_card("MC median MWR", fmt_percent(stats["mwr_median"]), "Money-weighted annual return."),
-        _metric_card(fifth_label, fifth_value, "Share of Monte Carlo paths."),
+        _metric_card(fifth_label, fifth_value, "Model-estimated share of Monte Carlo paths."),
     ])
     st.markdown(f'<div class="kpi-grid">{html}</div>', unsafe_allow_html=True)
 
@@ -1318,8 +1511,8 @@ def make_monte_carlo_comparison_table(historical_stats: pd.Series, mc_stats: pd.
         ("P95", fmt_currency(historical_stats["p95"], currency_symbol), fmt_currency(mc_stats["p95"], currency_symbol)),
         ("Median CPI-adjusted", fmt_currency(historical_stats.get("real_median", float("nan")), currency_symbol), fmt_currency(mc_stats.get("real_median", float("nan")), currency_symbol)),
         ("Median MWR", fmt_percent(historical_stats["mwr_median"]), fmt_percent(mc_stats["mwr_median"])),
-        ("Below paid-in", fmt_percent(historical_stats["prob_below_contribution"]), fmt_percent(mc_stats["prob_below_contribution"])),
-        ("Above target" if target_wealth > 0 else "Above target", fmt_percent(historical_stats["prob_above_target"]), fmt_percent(mc_stats["prob_above_target"])),
+        ("Below paid-in share", fmt_percent(historical_stats["prob_below_contribution"]), fmt_percent(mc_stats["prob_below_contribution"])),
+        ("Above target share", fmt_percent(historical_stats["prob_above_target"]), fmt_percent(mc_stats["prob_above_target"])),
         ("Median fees", fmt_currency(historical_stats["fees_median"], currency_symbol), fmt_currency(mc_stats["fees_median"], currency_symbol)),
         ("Median max drawdown", fmt_percent(historical_stats["max_drawdown_median"]), fmt_percent(mc_stats["max_drawdown_median"])),
     ]
@@ -1362,27 +1555,29 @@ def render_methodology_notes(contribution_timing_label: str, only_full_fx_window
     with st.expander("Methodology notes and trust checklist", expanded=False):
         st.markdown(f"""
 **What has been strengthened in this version**
-- Fixed the rolling-window off-by-one issue: the final valid rolling window is now included and the end date is the last month actually used.
+- Fixed the rolling-window off-by-one issue: the final valid rolling window is included and the end date is the last month actually used.
 - Added contribution timing: **{contribution_timing_label}**.
+- Added inflation-linked/custom contribution growth options.
 - Added a money-weighted return estimate for the median, 10th and 90th percentile outcomes.
 - Added FX full-coverage filtering: **{'enabled' if only_full_fx_windows else 'disabled'}**.
-- Added fee totals, portfolio drawdown, target-hit probability, and below-paid-in probability.
-- Added a block-bootstrap Monte Carlo module for the featured horizon.
+- Added fee totals, portfolio drawdown, target-hit share, and below-paid-in share.
+- Added an extra annual tracking-drag control for implementation friction.
+- Added forecast-conditioned Monte Carlo controls: sample-pool selection, forward-return anchoring and CAPE/valuation anchoring.
 - Added a real/today's-money view using **historical CPI inflation from the uploaded World Bank/IMF dataset**.
 
 **How to read the results**
-- The results are historical rolling scenarios, not forecasts.
+- Historical rolling outputs are historical scenarios, not independent probability trials.
+- Monte Carlo outputs are **model-estimated shares**, not guaranteed future probabilities.
 - The money-weighted return is more meaningful than the old paid-in CAGR when monthly contributions are used.
 - The drawdown shown is based on portfolio value after contributions and fees, so it is not identical to pure market drawdown.
-- If a target is set at **{target_wealth:,.0f}**, the historical probability is the share of rolling windows that ended above that target.
-- The Monte Carlo module resamples contiguous monthly-return blocks. It improves robustness compared with pure rolling windows, but it still depends on historical return behaviour.
+- If a target is set at **{target_wealth:,.0f}**, the historical target metric is the share of rolling windows that ended above that target.
+- Forward-return and CAPE modes make the bootstrap more planning-relevant by anchoring the future return assumption instead of assuming the full historical average repeats.
 
 **Still worth adding later if you want even stronger robustness**
-- Separate dividend, valuation and currency attribution.
-- Regime split reports: pre-war, post-war, 1970s inflation, dot-com, GFC, COVID/2022.
+- True Shiller CAPE history embedded into the dataset, so blocks can be weighted by historical valuation similarity rather than just using a user-entered CAPE anchor.
+- Out-of-sample calibration: pretend each past decade was "today", forecast forward, and score whether the actual result fell inside the modelled range.
 - Tax wrapper mode: ISA, SIPP, GIA.
         """)
-
 
 def make_summary_table(summary_df: pd.DataFrame, currency_symbol: str, target_wealth: float) -> pd.DataFrame:
     columns = ["years", "count", "real_count", "cpi_coverage_share", "total_contribution", "p05", "p10", "median", "mean", "p90", "p95", "max", "real_median", "wealth_multiple_median", "paid_in_annualised_median", "mwr_median", "prob_below_contribution", "prob_above_target", "fees_median", "max_drawdown_median", "worst_start", "worst_end", "best_start", "best_end"]
@@ -1394,7 +1589,7 @@ def make_summary_table(summary_df: pd.DataFrame, currency_symbol: str, target_we
         table_df[col] = table_df[col].map(fmt_percent)
     for col in ["worst_start", "worst_end", "best_start", "best_end"]:
         table_df[col] = table_df[col].map(fmt_date)
-    return table_df.rename(columns={"years": "Years", "count": "Windows", "real_count": "CPI windows", "cpi_coverage_share": "CPI coverage", "total_contribution": "Paid in", "p05": "P5", "p10": "P10", "median": "Median", "mean": "Mean", "p90": "P90", "p95": "P95", "max": "Max", "real_median": "CPI-adjusted median", "wealth_multiple_median": "Median multiple", "paid_in_annualised_median": "Paid-in annualised", "mwr_median": "Median MWR", "prob_below_contribution": "Below paid-in", "prob_above_target": "Above target", "fees_median": "Median fees", "max_drawdown_median": "Median max DD", "worst_start": "Worst start", "worst_end": "Worst end", "best_start": "Best start", "best_end": "Best end"})
+    return table_df.rename(columns={"years": "Years", "count": "Windows", "real_count": "CPI windows", "cpi_coverage_share": "CPI coverage", "total_contribution": "Paid in", "p05": "P5", "p10": "P10", "median": "Median", "mean": "Mean", "p90": "P90", "p95": "P95", "max": "Max", "real_median": "CPI-adjusted median", "wealth_multiple_median": "Median multiple", "paid_in_annualised_median": "Paid-in annualised", "mwr_median": "Median MWR", "prob_below_contribution": "Below paid-in share", "prob_above_target": "Above target share", "fees_median": "Median fees", "max_drawdown_median": "Median max DD", "worst_start": "Worst start", "worst_end": "Worst end", "best_start": "Best start", "best_end": "Best end"})
 
 
 def main() -> None:
@@ -1474,23 +1669,74 @@ def main() -> None:
         platform_fee_annual = f.number_input("Platform fee (% / year)", min_value=0.0, value=0.15, step=0.01) / 100.0
         platform_fee_monthly_min = g.number_input(f"Platform minimum ({currency_symbol} / month)", min_value=0.0, value=4.0, step=0.5)
         platform_fee_annual_cap = h.number_input(f"Platform cap ({currency_symbol} / year, 0 = no cap)", min_value=0.0, value=375.0, step=25.0)
+
         i, j, k, l = st.columns(4)
         contribution_timing_label = i.selectbox("Contribution timing", list(CONTRIBUTION_TIMING_OPTIONS.keys()), index=1)
         contribution_timing = CONTRIBUTION_TIMING_OPTIONS[contribution_timing_label]
-        j.markdown(f"**Real-value method**  \nHistorical {cpi_diag['country_code']} CPI  \n{cpi_diag['covered_months']:,}/{cpi_diag['total_months']:,} months covered")
-        target_wealth = k.number_input(f"Target wealth ({currency_symbol}, optional)", min_value=0.0, value=0.0, step=10000.0)
-        featured_horizon = l.slider("Featured horizon", min_value=int(year_range[0]), max_value=int(year_range[1]), value=int(year_range[1]))
+        contribution_growth_label = j.selectbox("Contribution growth", list(CONTRIBUTION_GROWTH_OPTIONS.keys()), index=0, help="Use inflation-linked contributions if you want the monthly amount to grow with purchasing power rather than stay fixed in nominal terms.")
+        contribution_growth_mode = CONTRIBUTION_GROWTH_OPTIONS[contribution_growth_label]
+        contribution_growth_annual = k.number_input("Custom contribution growth (% / year)", min_value=-20.0, max_value=30.0, value=2.5, step=0.25) / 100.0
+        extra_tracking_drag_annual = l.number_input("Extra tracking drag (% / year)", min_value=0.0, max_value=2.0, value=0.15, step=0.05, help="Extra annual drag for tracking difference, withholding-tax leakage, spread/slippage or implementation friction.") / 100.0
+
+        q, r, s_col, t = st.columns(4)
+        q.markdown(f"**Real-value method**  \nHistorical {cpi_diag['country_code']} CPI  \n{cpi_diag['covered_months']:,}/{cpi_diag['total_months']:,} months covered")
+        target_wealth = r.number_input(f"Target wealth ({currency_symbol}, optional)", min_value=0.0, value=0.0, step=10000.0)
+        featured_horizon = s_col.slider("Featured horizon", min_value=int(year_range[0]), max_value=int(year_range[1]), value=int(year_range[1]))
+        t.markdown(f"**All-in annual drag**  \nFund + extra drag  \n{(fund_fee_annual + extra_tracking_drag_annual) * 100:.2f}%/yr before platform fee")
 
         st.markdown("---")
-        m, n, o, p = st.columns(4)
+        st.markdown("#### Monte Carlo forecast controls")
+        m, n, o, p_col = st.columns(4)
         enable_monte_carlo = m.checkbox("Run Monte Carlo", value=True, help="Runs a block-bootstrap Monte Carlo for the featured horizon using the selected historical sample and assumptions.")
         mc_simulations = n.number_input("Monte Carlo paths", min_value=100, max_value=20000, value=3000, step=100)
         mc_block_months = o.slider("Bootstrap block length (months)", min_value=1, max_value=60, value=12, help="Longer blocks preserve more market clustering; 12 months is a reasonable default for annual regime behaviour.")
-        mc_seed = p.number_input("Monte Carlo seed", min_value=0, max_value=999999, value=42, step=1)
+        mc_seed = p_col.number_input("Monte Carlo seed", min_value=0, max_value=999999, value=42, step=1)
+
+        u, v, w = st.columns([1.1, 1.1, 1.2])
+        mc_sample_pool_label = u.selectbox("Monte Carlo sample pool", list(MC_SAMPLE_POOL_OPTIONS.keys()), index=0, help="Narrows the bootstrap pool so the forecast can be conditioned on modern, high-inflation or stress periods.")
+        mc_sample_pool_mode = MC_SAMPLE_POOL_OPTIONS[mc_sample_pool_label]
+        mc_forecast_mode_label = v.selectbox("Forecast return anchor", list(MC_FORECAST_MODE_OPTIONS.keys()), index=0, help="Historical mode leaves sampled returns unchanged. Forward/CAPE modes shift path log returns to match an expected annual return.")
+        mc_forecast_mode = MC_FORECAST_MODE_OPTIONS[mc_forecast_mode_label]
+
+        active_geo_return = annualised_geometric_return(returns_df.loc[returns_df["return"].notna(), "return"])
+        forward_expected_return_annual = active_geo_return
+        current_cape = fair_cape = cape_sensitivity = float("nan")
+        with w:
+            if mc_forecast_mode == "forward":
+                forward_expected_return_annual = st.number_input("Expected nominal return (% / year)", min_value=-20.0, max_value=25.0, value=6.0, step=0.25) / 100.0
+            elif mc_forecast_mode == "cape":
+                c1, c2, c3 = st.columns(3)
+                current_cape = c1.number_input("Current CAPE", min_value=1.0, max_value=100.0, value=30.0, step=0.5)
+                fair_cape = c2.number_input("Fair CAPE", min_value=1.0, max_value=100.0, value=18.0, step=0.5)
+                cape_sensitivity = c3.number_input("CAPE sensitivity", min_value=0.0, max_value=0.20, value=0.06, step=0.005, help="Higher values penalise expensive valuations more strongly.")
+                forward_expected_return_annual = valuation_adjusted_expected_return(active_geo_return, current_cape, fair_cape, cape_sensitivity)
+            else:
+                st.markdown(f"**Historical anchor**  \nActive-sample annualised return  \n{active_geo_return*100:.2f}%/yr")
+
+        if mc_forecast_mode in {"forward", "cape"}:
+            st.info(f"Monte Carlo paths will be shifted so their annualised return is anchored near **{forward_expected_return_annual*100:.2f}%/yr** before fees/platform costs. Historical shape and volatility clustering are preserved, but the median return assumption is forward-looking.")
     st.markdown('</div>', unsafe_allow_html=True)
 
     try:
-        horizon_results = [simulate_rolling_horizon(returns_df, yr, initial_investment, monthly_contribution, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap, contribution_timing, only_full_fx_windows, target_wealth) for yr in range(int(year_range[0]), int(year_range[1]) + 1)]
+        horizon_results = [
+            simulate_rolling_horizon(
+                returns_df,
+                yr,
+                initial_investment,
+                monthly_contribution,
+                fund_fee_annual,
+                platform_fee_annual,
+                platform_fee_monthly_min,
+                platform_fee_annual_cap,
+                contribution_timing,
+                only_full_fx_windows,
+                target_wealth,
+                contribution_growth_mode,
+                contribution_growth_annual,
+                extra_tracking_drag_annual,
+            )
+            for yr in range(int(year_range[0]), int(year_range[1]) + 1)
+        ]
     except ValueError as exc:
         st.error(str(exc))
         st.stop()
@@ -1512,7 +1758,7 @@ def main() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
     if enable_monte_carlo:
-        st.markdown('<div class="section-title"><h2>Monte Carlo block-bootstrap study</h2></div><div class="section-subtitle">Synthetic paths for the featured horizon. The simulation resamples contiguous historical return blocks, so it is more robust than a simple monthly shuffle but still remains history-based.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title"><h2>Forecast-conditioned Monte Carlo study</h2></div><div class="section-subtitle">Synthetic paths for the featured horizon. The simulation resamples contiguous historical blocks and can optionally apply forward-return, CAPE/valuation, contribution-growth and tracking-drag assumptions.</div>', unsafe_allow_html=True)
         try:
             mc_result = simulate_monte_carlo_block_bootstrap(
                 returns_df,
@@ -1529,6 +1775,12 @@ def main() -> None:
                 int(mc_simulations),
                 int(mc_block_months),
                 int(mc_seed),
+                mc_sample_pool_mode,
+                mc_forecast_mode,
+                forward_expected_return_annual if mc_forecast_mode in {"forward", "cape"} else None,
+                contribution_growth_mode,
+                contribution_growth_annual,
+                extra_tracking_drag_annual,
             )
         except ValueError as exc:
             st.warning(f"Monte Carlo could not run: {exc}")
