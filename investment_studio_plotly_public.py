@@ -21,14 +21,16 @@ EMBEDDED_TEXT_DATASETS = {
 
 EMBEDDED_FX = {
     "EXUSUK": "b2JzZXJ2YXRpb25fZGF0ZSxFWFVTVUsKMTk3MS0wMS0wMSwyLjQwNTgKMTk3MS0wMi0wMSwyLjQxNzgKMTk3MS0wMy0wMSwyLjQxODcKMTk3MS0wNC0wMSwyLjQxNzkKMTk3MS0wNS0wMSwyLjQxODcKMTk3MS0wNi0wMSwyLjQxODgKMTk3MS0wNy0wMSwyLjQxODUKMTk3MS0wOC0wMSwyLjQzNDYKMTk3MS0wOS0wMSwyLjQ2OTQKMTk3MS0xMC0wMSwyLjQ4OTYKMTk3MS0xMS0wMSwyLjQ5MzMKMTk3MS0xMi0wMSwyLjUyNjYKMTk3Mi0wMS0wMSwyLjU3MDUKMTk3Mi0wMi0wMSwyLjYwMzcKMTk3Mi0wMy0wMSwyLjYxODEKMTk3Mi0wNC0wMSwyLjYxMDIKMTk3Mi0wNS0wMSwyLjYxMjQKMTk3Mi0wNi0wMSwyLjU2OTEKMTk3Mi0wNy0wMSwyLjQ0NDcKMTk3Mi0wOC0wMSwyLjQ1MDIKMTk3Mi0wOS0wMSwyLjQ0MTAKMTk3Mi0xMC0wMSwyLjM5NDgKMTk3Mi0xMS0wMSwyLjM1MTUKMTk3Mi0xMi0wMSwyLjM0NDkKMTk3My0wMS0wMSwyLjM1NjMKMTk3My0wMi0wMSwyLjQyNzIKMTk3My0wMy0wMSwyLjQ3MjQKMTk3My0wNC0wMSwyLjQ4MzcKMTk3My0wNS0wMSwyLjUzMDYKMTk3My0wNi0wMSwyLjU3NjIKMTk3My0wNy0wMSwyLjUzNzUKMTk3My0wOC0wMSwyLjQ3NTcKMTk3My0wOS0wMSwyLjQxODMKMTk3My0xMC0wMSwyLjQyOTIKMTk3My0xMS0wMSwyLjM4NzAKMTk3My0xMi0wMSwyLjMxNzQKMTk3NC0wMS0wMSwyLjIyNDAKMTk3NC0wMi0wMSwyLjI3NDkKMTk3NC0wMy0wMSwyLjM0MDYKMTk3NC0wNC0wMSwyLjM4ODYKMTk3NC0wNS0wMSwyLjQxMzcKMTk3NC0wNi0wMSwyLjM5MDIKMTk3NC0wNy0wMSwyLjM4OTYKMTk3NC0wOC0wMSwyLjM0NTYKMTk3NC0wOS0wMSwyLjMxNjUKMTk3NC0xMC0wMSwyLjMzMzAKMTk3NC0xMS0wMSwyLjMyNTIKMTk3NC0xMi0wMSwyLjMyOTQKMTk3NS0wMS0wMSwyLjM2MjMKMTk3NS0wMi0wMSwyLjM5NTgKMTk3NS0wMy0wMSwyLjQxODAKMTk3NS0wNC0wMSwyLjM3MDcKMTk3NS0wNS0wMSwyLjMyMDUKMTk3NS0wNi0wMSwyLjI4MDMKMTk3NS0wNy0wMSwyLjE4NDUKMTk3NS0wOC0wMSwyLjExNDMKMTk3NS0wOS0wMSwyLjA4MzQKMTk3NS0xMC0wMSwyLjA1NjgKMTk3NS0xMS0wMSwyLjA0ODQKMTk3NS0xMi0wMSwyLjAyMjEKMTk3Ni0wMS0wMSwyLjAyODYKMTk3Ni0wMi0wMSwyLjAyNjIKMTk3Ni0wMy0wMSwxLjk0MjgKMTk3Ni0wNC0wMSwxLjg0NjMKMTk3Ni0wNS0wMSwxLjgwNzkKMTk3Ni0wNi0wMSwxLjc2NDAKMTk3Ni0wNy0wMSwxLjc4NTAKMTk3Ni0wOC0wMSwxLjc4MjgKMTk3Ni0wOS0wMSwxLjcyNzIKMTk3Ni0xMC0wMSwxLjYzNzcKMTk3Ni0xMS0wMSwxLjYzODEKMTk3Ni0xMi0wMSwxLjY3ODQKMTk3Ny0wMS0wMSwxLjcxMjQKMTk3Ny0wMi0wMSwxLjcxMDMKMTk3Ny0wMy0wMSwxLjcxNzQKMTk3Ny0wNC0wMSwxLjcxOTAKMTk3Ny0wNS0wMSwxLjcxODUKMTk3Ny0wNi0wMSwxLjcxOTEKMTk3Ny0wNy0wMSwxLjcyMjYKMTk3Ny0wOC0wMSwxLjczOTcKMTk3Ny0wOS0wMSwxLjc0MzEKMTk3Ny0xMC0wMSwxLjc3MTEKMTk3Ny0xMS0wMSwxLjgxNzgKMTk3Ny0xMi0wMSwxLjg1NDYKMTk3OC0wMS0wMSwxLjkzNTMKMTk3OC0wMi0wMSwxLjkzOTYKMTk3OC0wMy0wMSwxLjkwNTUKMTk3OC0wNC0wMSwxLjg0OTcKMTk3OC0wNS0wMSwxLjgxODEKMTk3OC0wNi0wMSwxLjgzNzIKMTk3OC0wNy0wMSwxLjg5NDkKMTk3OC0wOC0wMSwxLjk0MDYKMTk3OC0wOS0wMSwxLjk1OTUKMTk3OC0xMC0wMSwyLjAwNzUKMTk3OC0xMS0wMSwxLjk2MDgKMTk3OC0xMi0wMSwxLjk4NjEKMTk3OS0wMS0wMSwyLjAwNTMKMTk3OS0wMi0wMSwyLjAwNDIKMTk3OS0wMy0wMSwyLjAzNzgKMTk3OS0wNC0wMSwyLjA3MzUKMTk3OS0wNS0wMSwyLjA1ODcKMTk3OS0wNi0wMSwyLjExMTkKMTk3OS0wNy0wMSwyLjI1OTgKMTk3OS0wOC0wMSwyLjIzNjgKMTk3OS0wOS0wMSwyLjE5NjYKMTk3OS0xMC0wMSwyLjE0MzgKMTk3OS0xMS0wMSwyLjEzNTIKMTk3OS0xMi0wMSwyLjIwMDcKMTk4MC0wMS0wMSwyLjI2NDEKMTk4MC0wMi0wMSwyLjI4OTEKMTk4MC0wMy0wMSwyLjIwNDUKMTk4MC0wNC0wMSwyLjIwOTQKMTk4MC0wNS0wMSwyLjMwMjAKMTk4MC0wNi0wMSwyLjMzNTkKMTk4MC0wNy0wMSwyLjM3MzIKMTk4MC0wOC0wMSwyLjM3MDQKMTk4MC0wOS0wMSwyLjQwMTIKMTk4MC0xMC0wMSwyLjQxNjUKMTk4MC0xMS0wMSwyLjM5NDEKMTk4MC0xMi0wMSwyLjM0NTkKMTk4MS0wMS0wMSwyLjQwMjkKMTk4MS0wMi0wMSwyLjI5NDEKMTk4MS0wMy0wMSwyLjIzMTkKMTk4MS0wNC0wMSwyLjE3NTMKMTk4MS0wNS0wMSwyLjA4ODQKMTk4MS0wNi0wMSwxLjk3MzgKMTk4MS0wNy0wMSwxLjg3MzcKMTk4MS0wOC0wMSwxLjgyMDMKMTk4MS0wOS0wMSwxLjgxNDYKMTk4MS0xMC0wMSwxLjg0MDcKMTk4MS0xMS0wMSwxLjkwMjUKMTk4MS0xMi0wMSwxLjkwMzMKMTk4Mi0wMS0wMSwxLjg4NjAKMTk4Mi0wMi0wMSwxLjg0NzAKMTk4Mi0wMy0wMSwxLjgwNTMKMTk4Mi0wNC0wMSwxLjc3MjAKMTk4Mi0wNS0wMSwxLjgxMDQKMTk4Mi0wNi0wMSwxLjc1NjMKMTk4Mi0wNy0wMSwxLjczNTQKMTk4Mi0wOC0wMSwxLjcyNTAKMTk4Mi0wOS0wMSwxLjcxMjAKMTk4Mi0xMC0wMSwxLjY5NjIKMTk4Mi0xMS0wMSwxLjYzMjEKMTk4Mi0xMi0wMSwxLjYxNjAKMTk4My0wMS0wMSwxLjU3NTYKMTk4My0wMi0wMSwxLjUzMjkKMTk4My0wMy0wMSwxLjQ5MDAKMTk4My0wNC0wMSwxLjUzNjEKMTk4My0wNS0wMSwxLjU3MjIKMTk4My0wNi0wMSwxLjU0ODAKMTk4My0wNy0wMSwxLjUyNzMKMTk4My0wOC0wMSwxLjUwMjYKMTk4My0wOS0wMSwxLjQ5ODYKMTk4My0xMC0wMSwxLjQ5NjkKMTk4My0xMS0wMSwxLjQ3NjYKMTk4My0xMi0wMSwxLjQzMzgKMTk4NC0wMS0wMSwxLjQwNzYKMTk4NC0wMi0wMSwxLjQ0MTcKMTk4NC0wMy0wMSwxLjQ1NTcKMTk4NC0wNC0wMSwxLjQyMTAKMTk4NC0wNS0wMSwxLjM4OTQKMTk4NC0wNi0wMSwxLjM3NzAKMTk4NC0wNy0wMSwxLjMyMDAKMTk4NC0wOC0wMSwxLjMxMzIKMTk4NC0wOS0wMSwxLjI1NjMKMTk4NC0xMC0wMSwxLjIxOTYKMTk4NC0xMS0wMSwxLjIzOTIKMTk4NC0xMi0wMSwxLjE4NjEKMTk4NS0wMS0wMSwxLjEyNzEKMTk4NS0wMi0wMSwxLjA5MzEKMTk4NS0wMy0wMSwxLjEyNTMKMTk4NS0wNC0wMSwxLjIzNzcKMTk4NS0wNS0wMSwxLjI0ODMKMTk4NS0wNi0wMSwxLjI4MDgKMTk4NS0wNy0wMSwxLjM4MDcKMTk4NS0wOC0wMSwxLjM4NDEKMTk4NS0wOS0wMSwxLjM2NDIKMTk4NS0xMC0wMSwxLjQyMTUKMTk4NS0xMS0wMSwxLjQzOTYKMTk4NS0xMi0wMSwxLjQ0NDcKMTk4Ni0wMS0wMSwxLjQyNDQKMTk4Ni0wMi0wMSwxLjQyOTcKMTk4Ni0wMy0wMSwxLjQ2NzQKMTk4Ni0wNC0wMSwxLjQ5ODUKMTk4Ni0wNS0wMSwxLjUyMTEKMTk4Ni0wNi0wMSwxLjUwODUKMTk4Ni0wNy0wMSwxLjUwNzEKMTk4Ni0wOC0wMSwxLjQ4NjEKMTk4Ni0wOS0wMSwxLjQ2OTgKMTk4Ni0xMC0wMSwxLjQyNjQKMTk4Ni0xMS0wMSwxLjQyMzgKMTk4Ni0xMi0wMSwxLjQzOTMKMTk4Ny0wMS0wMSwxLjUwNTQKMTk4Ny0wMi0wMSwxLjUyODAKMTk4Ny0wMy0wMSwxLjU5MjMKMTk4Ny0wNC0wMSwxLjYzMTMKMTk4Ny0wNS0wMSwxLjY2NjYKMTk4Ny0wNi0wMSwxLjYyODgKMTk4Ny0wNy0wMSwxLjYwOTAKMTk4Ny0wOC0wMSwxLjU5OTYKMTk4Ny0wOS0wMSwxLjY0NDYKMTk4Ny0xMC0wMSwxLjY2MjAKMTk4Ny0xMS0wMSwxLjc3NTQKMTk4Ny0xMi0wMSwxLjgyODgKMTk4OC0wMS0wMSwxLjgwMDkKMTk4OC0wMi0wMSwxLjc1ODIKMTk4OC0wMy0wMSwxLjgzMzAKMTk4OC0wNC0wMSwxLjg3ODIKMTk4OC0wNS0wMSwxLjg2OTUKMTk4OC0wNi0wMSwxLjc3NjgKMTk4OC0wNy0wMSwxLjcwNTEKMTk4OC0wOC0wMSwxLjY5NjUKMTk4OC0wOS0wMSwxLjY4NDAKMTk4OC0xMC0wMSwxLjczODgKMTk4OC0xMS0wMSwxLjgwODUKMTk4OC0xMi0wMSwxLjgyNTgKMTk4OS0wMS0wMSwxLjc3MzcKMTk4OS0wMi0wMSwxLjc1MzQKMTk4OS0wMy0wMSwxLjcxMzQKMTk4OS0wNC0wMSwxLjcwMDgKMTk4OS0wNS0wMSwxLjYzMDcKMTk4OS0wNi0wMSwxLjU1MzAKMTk4OS0wNy0wMSwxLjYyNjgKMTk4OS0wOC0wMSwxLjU5NDcKMTk4OS0wOS0wMSwxLjU3MTUKMTk4OS0xMC0wMSwxLjU4NzQKMTk4OS0xMS0wMSwxLjU3MjYKMTk4OS0xMi0wMSwxLjU5NjUKMTk5MC0wMS0wMSwxLjY1MTIKMTk5MC0wMi0wMSwxLjY5NjEKMTk5MC0wMy0wMSwxLjYyNDUKMTk5MC0wNC0wMSwxLjYzNzIKMTk5MC0wNS0wMSwxLjY3NzQKMTk5MC0wNi0wMSwxLjcxMDMKMTk5MC0wNy0wMSwxLjgwOTgKMTk5MC0wOC0wMSwxLjkwMTMKMTk5MC0wOS0wMSwxLjg3OTQKMTk5MC0xMC0wMSwxLjk0NTYKMTk5MC0xMS0wMSwxLjk2NDIKMTk5MC0xMi0wMSwxLjkyMTkKMTk5MS0wMS0wMSwxLjkzNDYKMTk5MS0wMi0wMSwxLjk2NDEKMTk5MS0wMy0wMSwxLjgyMTQKMTk5MS0wNC0wMSwxLjc0OTcKMTk5MS0wNS0wMSwxLjcyMzgKMTk5MS0wNi0wMSwxLjY0OTcKMTk5MS0wNy0wMSwxLjY1MTMKMTk5MS0wOC0wMSwxLjY4NDEKMTk5MS0wOS0wMSwxLjcyNjUKMTk5MS0xMC0wMSwxLjcyMzEKMTk5MS0xMS0wMSwxLjc3OTYKMTk5MS0xMi0wMSwxLjgyNzIKMTk5Mi0wMS0wMSwxLjgwOTAKMTk5Mi0wMi0wMSwxLjc3NzgKMTk5Mi0wMy0wMSwxLjcyMzgKMTk5Mi0wNC0wMSwxLjc1NjYKMTk5Mi0wNS0wMSwxLjgwOTUKMTk5Mi0wNi0wMSwxLjg1NTEKMTk5Mi0wNy0wMSwxLjkxNzcKMTk5Mi0wOC0wMSwxLjk0MzQKMTk5Mi0wOS0wMSwxLjg0NjUKMTk5Mi0xMC0wMSwxLjY1MjkKMTk5Mi0xMS0wMSwxLjUyNjgKMTk5Mi0xMi0wMSwxLjU1MTAKMTk5My0wMS0wMSwxLjUzMjUKMTk5My0wMi0wMSwxLjQzOTUKMTk5My0wMy0wMSwxLjQ2MTcKMTk5My0wNC0wMSwxLjU0NDcKMTk5My0wNS0wMSwxLjU0NzcKMTk5My0wNi0wMSwxLjUwODIKMTk5My0wNy0wMSwxLjQ5NTUKMTk5My0wOC0wMSwxLjQ5MTQKMTk5My0wOS0wMSwxLjUyNDgKMTk5My0xMC0wMSwxLjUwMjMKMTk5My0xMS0wMSwxLjQ4MDgKMTk5My0xMi0wMSwxLjQ5MTMKMTk5NC0wMS0wMSwxLjQ5MjMKMTk5NC0wMi0wMSwxLjQ3OTIKMTk5NC0wMy0wMSwxLjQ5MTkKMTk5NC0wNC0wMSwxLjQ4MjMKMTk5NC0wNS0wMSwxLjUwNDIKMTk5NC0wNi0wMSwxLjUyNjIKMTk5NC0wNy0wMSwxLjU0NjcKMTk5NC0wOC0wMSwxLjU0MjIKMTk5NC0wOS0wMSwxLjU2NjEKMTk5NC0xMC0wMSwxLjYwNjQKMTk5NC0xMS0wMSwxLjU4OTIKMTk5NC0xMi0wMSwxLjU1ODcKMTk5NS0wMS0wMSwxLjU3NDYKMTk5NS0wMi0wMSwxLjU3MjAKMTk5NS0wMy0wMSwxLjYwMDIKMTk5NS0wNC0wMSwxLjYwNzMKMTk5NS0wNS0wMSwxLjU4NzQKMTk5NS0wNi0wMSwxLjU5NDgKMTk5NS0wNy0wMSwxLjU5NTIKMTk5NS0wOC0wMSwxLjU2NjgKMTk5NS0wOS0wMSwxLjU1OTAKMTk5NS0xMC0wMSwxLjU3NzkKMTk5NS0xMS0wMSwxLjU2MjUKMTk5NS0xMi0wMSwxLjU0MDUKMTk5Ni0wMS0wMSwxLjUyODgKMTk5Ni0wMi0wMSwxLjUzNjAKMTk5Ni0wMy0wMSwxLjUyNzEKMTk5Ni0wNC0wMSwxLjUxNjAKMTk5Ni0wNS0wMSwxLjUxNTIKMTk5Ni0wNi0wMSwxLjU0MTYKMTk5Ni0wNy0wMSwxLjU1MzAKMTk5Ni0wOC0wMSwxLjU0OTkKMTk5Ni0wOS0wMSwxLjU1OTMKMTk5Ni0xMC0wMSwxLjU4NjMKMTk5Ni0xMS0wMSwxLjY2MjMKMTk5Ni0xMi0wMSwxLjY2MzkKMTk5Ny0wMS0wMSwxLjY1ODUKMTk5Ny0wMi0wMSwxLjYyNTYKMTk5Ny0wMy0wMSwxLjYwOTYKMTk5Ny0wNC0wMSwxLjYyOTMKMTk5Ny0wNS0wMSwxLjYzMjIKMTk5Ny0wNi0wMSwxLjY0NDkKMTk5Ny0wNy0wMSwxLjY2OTQKMTk5Ny0wOC0wMSwxLjYwMzUKMTk5Ny0wOS0wMSwxLjYwMTMKMTk5Ny0xMC0wMSwxLjYzMzAKMTk5Ny0xMS0wMSwxLjY4ODkKMTk5Ny0xMi0wMSwxLjY1OTcKMTk5OC0wMS0wMSwxLjYzNTAKMTk5OC0wMi0wMSwxLjY0MDgKMTk5OC0wMy0wMSwxLjY2MTkKMTk5OC0wNC0wMSwxLjY3MjMKMTk5OC0wNS0wMSwxLjYzODIKMTk5OC0wNi0wMSwxLjY1MDQKMTk5OC0wNy0wMSwxLjY0MzcKMTk5OC0wOC0wMSwxLjYzNDIKMTk5OC0wOS0wMSwxLjY4MjMKMTk5OC0xMC0wMSwxLjY5NDQKMTk5OC0xMS0wMSwxLjY2MTEKMTk5OC0xMi0wMSwxLjY3MDgKMTk5OS0wMS0wMSwxLjY0OTgKMTk5OS0wMi0wMSwxLjYyNzYKMTk5OS0wMy0wMSwxLjYyMTMKMTk5OS0wNC0wMSwxLjYwODkKMTk5OS0wNS0wMSwxLjYxNTQKMTk5OS0wNi0wMSwxLjU5NTAKMTk5OS0wNy0wMSwxLjU3NTEKMTk5OS0wOC0wMSwxLjYwNTgKMTk5OS0wOS0wMSwxLjYyNDcKMTk5OS0xMC0wMSwxLjY1NzIKMTk5OS0xMS0wMSwxLjYyMDUKMTk5OS0xMi0wMSwxLjYxMzIKMjAwMC0wMS0wMSwxLjY0MDQKMjAwMC0wMi0wMSwxLjYwMDAKMjAwMC0wMy0wMSwxLjU3OTkKMjAwMC0wNC0wMSwxLjU4MjMKMjAwMC0wNS0wMSwxLjUwOTAKMjAwMC0wNi0wMSwxLjUwOTIKMjAwMC0wNy0wMSwxLjUwNzYKMjAwMC0wOC0wMSwxLjQ4ODkKMjAwMC0wOS0wMSwxLjQzMzYKMjAwMC0xMC0wMSwxLjQ1MDYKMjAwMC0xMS0wMSwxLjQyNTgKMjAwMC0xMi0wMSwxLjQ2MjkKMjAwMS0wMS0wMSwxLjQ3NzUKMjAwMS0wMi0wMSwxLjQ1MjUKMjAwMS0wMy0wMSwxLjQ0NDUKMjAwMS0wNC0wMSwxLjQzNDgKMjAwMS0wNS0wMSwxLjQyNjUKMjAwMS0wNi0wMSwxLjQwMjAKMjAwMS0wNy0wMSwxLjQxNDgKMjAwMS0wOC0wMSwxLjQzNzIKMjAwMS0wOS0wMSwxLjQ2MzgKMjAwMS0xMC0wMSwxLjQ1MDEKMjAwMS0xMS0wMSwxLjQzNTYKMjAwMS0xMi0wMSwxLjQ0MTMKMjAwMi0wMS0wMSwxLjQzMjIKMjAwMi0wMi0wMSwxLjQyMjcKMjAwMi0wMy0wMSwxLjQyMzAKMjAwMi0wNC0wMSwxLjQ0MjkKMjAwMi0wNS0wMSwxLjQ1OTgKMjAwMi0wNi0wMSwxLjQ4MzcKMjAwMi0wNy0wMSwxLjU1NjUKMjAwMi0wOC0wMSwxLjUzNjgKMjAwMi0wOS0wMSwxLjU1NjMKMjAwMi0xMC0wMSwxLjU1NzUKMjAwMi0xMS0wMSwxLjU3MTEKMjAwMi0xMi0wMSwxLjU4NjMKMjAwMy0wMS0wMSwxLjYxNzUKMjAwMy0wMi0wMSwxLjYwNzkKMjAwMy0wMy0wMSwxLjU4MjUKMjAwMy0wNC0wMSwxLjU3MzkKMjAwMy0wNS0wMSwxLjYyMjQKMjAwMy0wNi0wMSwxLjY2MDkKMjAwMy0wNy0wMSwxLjYyMjEKMjAwMy0wOC0wMSwxLjU5MzkKMjAwMy0wOS0wMSwxLjYxNTUKMjAwMy0xMC0wMSwxLjY3OTIKMjAwMy0xMS0wMSwxLjY4OTcKMjAwMy0xMi0wMSwxLjc1MTYKMjAwNC0wMS0wMSwxLjgyNTUKMjAwNC0wMi0wMSwxLjg2NzMKMjAwNC0wMy0wMSwxLjgyNjEKMjAwNC0wNC0wMSwxLjgwMzEKMjAwNC0wNS0wMSwxLjc4NjAKMjAwNC0wNi0wMSwxLjgyNzkKMjAwNC0wNy0wMSwxLjg0MzgKMjAwNC0wOC0wMSwxLjgyMDMKMjAwNC0wOS0wMSwxLjc5MzcKMjAwNC0xMC0wMSwxLjgwNzcKMjAwNC0xMS0wMSwxLjg2MDcKMjAwNC0xMi0wMSwxLjkyODYKMjAwNS0wMS0wMSwxLjg3OTcKMjAwNS0wMi0wMSwxLjg4NzEKMjAwNS0wMy0wMSwxLjkwNDMKMjAwNS0wNC0wMSwxLjg5NjEKMjAwNS0wNS0wMSwxLjg1NTkKMjAwNS0wNi0wMSwxLjgxNzcKMjAwNS0wNy0wMSwxLjc1MDcKMjAwNS0wOC0wMSwxLjc5NDQKMjAwNS0wOS0wMSwxLjgwNjQKMjAwNS0xMC0wMSwxLjc2NTEKMjAwNS0xMS0wMSwxLjczNDkKMjAwNS0xMi0wMSwxLjc0NTgKMjAwNi0wMS0wMSwxLjc2ODYKMjAwNi0wMi0wMSwxLjc0ODAKMjAwNi0wMy0wMSwxLjc0NDIKMjAwNi0wNC0wMSwxLjc2ODAKMjAwNi0wNS0wMSwxLjg2ODcKMjAwNi0wNi0wMSwxLjg0MzUKMjAwNi0wNy0wMSwxLjg0NDMKMjAwNi0wOC0wMSwxLjg5NDEKMjAwNi0wOS0wMSwxLjg4MzkKMjAwNi0xMC0wMSwxLjg3NjUKMjAwNi0xMS0wMSwxLjkxMjUKMjAwNi0xMi0wMSwxLjk2MjkKMjAwNy0wMS0wMSwxLjk1ODcKMjAwNy0wMi0wMSwxLjk1ODkKMjAwNy0wMy0wMSwxLjk0NzQKMjAwNy0wNC0wMSwxLjk4NzkKMjAwNy0wNS0wMSwxLjk4NDIKMjAwNy0wNi0wMSwxLjk4NjcKMjAwNy0wNy0wMSwyLjAzNTUKMjAwNy0wOC0wMSwyLjAxMTAKMjAwNy0wOS0wMSwyLjAxODQKMjAwNy0xMC0wMSwyLjA0NDkKMjAwNy0xMS0wMSwyLjA3MDEKMjAwNy0xMi0wMSwyLjAxNjEKMjAwOC0wMS0wMSwxLjk3MDIKMjAwOC0wMi0wMSwxLjk2NDYKMjAwOC0wMy0wMSwyLjAwMTUKMjAwOC0wNC0wMSwxLjk4MTYKMjAwOC0wNS0wMSwxLjk2NTAKMjAwOC0wNi0wMSwxLjk2NjQKMjAwOC0wNy0wMSwxLjk4ODgKMjAwOC0wOC0wMSwxLjg4NjUKMjAwOC0wOS0wMSwxLjc5NzMKMjAwOC0xMC0wMSwxLjY4NjIKMjAwOC0xMS0wMSwxLjUzMjcKMjAwOC0xMi0wMSwxLjQ4NTQKMjAwOS0wMS0wMSwxLjQ0NjIKMjAwOS0wMi0wMSwxLjQ0MjIKMjAwOS0wMy0wMSwxLjQxNzAKMjAwOS0wNC0wMSwxLjQ3MTIKMjAwOS0wNS0wMSwxLjU0MTgKMjAwOS0wNi0wMSwxLjYzNjkKMjAwOS0wNy0wMSwxLjYzNzgKMjAwOS0wOC0wMSwxLjY1MzIKMjAwOS0wOS0wMSwxLjYzMjMKMjAwOS0xMC0wMSwxLjYyMTIKMjAwOS0xMS0wMSwxLjY1OTkKMjAwOS0xMi0wMSwxLjYyMjYKMjAxMC0wMS0wMSwxLjYxNTgKMjAxMC0wMi0wMSwxLjU2MTgKMjAxMC0wMy0wMSwxLjUwNTgKMjAxMC0wNC0wMSwxLjUzMzIKMjAxMC0wNS0wMSwxLjQ2NjkKMjAxMC0wNi0wMSwxLjQ3NjgKMjAxMC0wNy0wMSwxLjUzMDQKMjAxMC0wOC0wMSwxLjU2NjEKMjAxMC0wOS0wMSwxLjU1OTEKMjAxMC0xMC0wMSwxLjU4NjcKMjAxMC0xMS0wMSwxLjU5NjEKMjAxMC0xMi0wMSwxLjU1OTUKMjAxMS0wMS0wMSwxLjU3ODIKMjAxMS0wMi0wMSwxLjYxMjQKMjAxMS0wMy0wMSwxLjYxNTkKMjAxMS0wNC0wMSwxLjYzNzkKMjAxMS0wNS0wMSwxLjYzMzIKMjAxMS0wNi0wMSwxLjYyMTkKMjAxMS0wNy0wMSwxLjYxNTgKMjAxMS0wOC0wMSwxLjYzNTYKMjAxMS0wOS0wMSwxLjU3NzEKMjAxMS0xMC0wMSwxLjU3NjgKMjAxMS0xMS0wMSwxLjU4MDYKMjAxMS0xMi0wMSwxLjU1ODcKMjAxMi0wMS0wMSwxLjU1MjQKMjAxMi0wMi0wMSwxLjU4MDQKMjAxMi0wMy0wMSwxLjU4MjQKMjAxMi0wNC0wMSwxLjYwMDAKMjAxMi0wNS0wMSwxLjU5MjQKMjAxMi0wNi0wMSwxLjU1NTYKMjAxMi0wNy0wMSwxLjU1OTMKMjAxMi0wOC0wMSwxLjU3MjIKMjAxMi0wOS0wMSwxLjYxMjYKMjAxMi0xMC0wMSwxLjYwODAKMjAxMi0xMS0wMSwxLjU5NjgKMjAxMi0xMi0wMSwxLjYxNDUKMjAxMy0wMS0wMSwxLjU5NjUKMjAxMy0wMi0wMSwxLjU0NzQKMjAxMy0wMy0wMSwxLjUwODAKMjAxMy0wNC0wMSwxLjUzMTEKMjAxMy0wNS0wMSwxLjUyOTcKMjAxMy0wNi0wMSwxLjU0OTMKMjAxMy0wNy0wMSwxLjUxNzkKMjAxMy0wOC0wMSwxLjU1MDUKMjAxMy0wOS0wMSwxLjU4ODUKMjAxMy0xMC0wMSwxLjYwOTgKMjAxMy0xMS0wMSwxLjYxMDAKMjAxMy0xMi0wMSwxLjYzODMKMjAxNC0wMS0wMSwxLjY0NzAKMjAxNC0wMi0wMSwxLjY1NTgKMjAxNC0wMy0wMSwxLjY2MjQKMjAxNC0wNC0wMSwxLjY3NDgKMjAxNC0wNS0wMSwxLjY4NDIKMjAxNC0wNi0wMSwxLjY5MDgKMjAxNC0wNy0wMSwxLjcwNjYKMjAxNC0wOC0wMSwxLjY3MDAKMjAxNC0wOS0wMSwxLjYyOTAKMjAxNC0xMC0wMSwxLjYwNzQKMjAxNC0xMS0wMSwxLjU3NzEKMjAxNC0xMi0wMSwxLjU2NDQKMjAxNS0wMS0wMSwxLjUxNDIKMjAxNS0wMi0wMSwxLjUzMjkKMjAxNS0wMy0wMSwxLjQ5NTgKMjAxNS0wNC0wMSwxLjQ5NjgKMjAxNS0wNS0wMSwxLjU0NTYKMjAxNS0wNi0wMSwxLjU1NzYKMjAxNS0wNy0wMSwxLjU1NjAKMjAxNS0wOC0wMSwxLjU1NzgKMjAxNS0wOS0wMSwxLjUzMzgKMjAxNS0xMC0wMSwxLjUzNDMKMjAxNS0xMS0wMSwxLjUxOTQKMjAxNS0xMi0wMSwxLjQ5ODEKMjAxNi0wMS0wMSwxLjQzOTIKMjAxNi0wMi0wMSwxLjQyOTAKMjAxNi0wMy0wMSwxLjQyNDkKMjAxNi0wNC0wMSwxLjQzMTkKMjAxNi0wNS0wMSwxLjQ1MjQKMjAxNi0wNi0wMSwxLjQxOTcKMjAxNi0wNy0wMSwxLjMxMzQKMjAxNi0wOC0wMSwxLjMxMDEKMjAxNi0wOS0wMSwxLjMxNDAKMjAxNi0xMC0wMSwxLjIzMzAKMjAxNi0xMS0wMSwxLjI0MzIKMjAxNi0xMi0wMSwxLjI0ODMKMjAxNy0wMS0wMSwxLjIzNjcKMjAxNy0wMi0wMSwxLjI0OTUKMjAxNy0wMy0wMSwxLjIzNDcKMjAxNy0wNC0wMSwxLjI2MzkKMjAxNy0wNS0wMSwxLjI5MjkKMjAxNy0wNi0wMSwxLjI4MTAKMjAxNy0wNy0wMSwxLjI5OTYKMjAxNy0wOC0wMSwxLjI5NTIKMjAxNy0wOS0wMSwxLjMzNDAKMjAxNy0xMC0wMSwxLjMyMDIKMjAxNy0xMS0wMSwxLjMyMTcKMjAxNy0xMi0wMSwxLjM0MDQKMjAxOC0wMS0wMSwxLjM4MjQKMjAxOC0wMi0wMSwxLjM5NjEKMjAxOC0wMy0wMSwxLjM5NzYKMjAxOC0wNC0wMSwxLjQwNzkKMjAxOC0wNS0wMSwxLjM0NzAKMjAxOC0wNi0wMSwxLjMyOTQKMjAxOC0wNy0wMSwxLjMxNjIKMjAxOC0wOC0wMSwxLjI4NzgKMjAxOC0wOS0wMSwxLjMwNjYKMjAxOC0xMC0wMSwxLjMwMTIKMjAxOC0xMS0wMSwxLjI5MDAKMjAxOC0xMi0wMSwxLjI2NjQKMjAxOS0wMS0wMSwxLjI5MDEKMjAxOS0wMi0wMSwxLjMwMTYKMjAxOS0wMy0wMSwxLjMxNjcKMjAxOS0wNC0wMSwxLjMwMjkKMjAxOS0wNS0wMSwxLjI4NTUKMjAxOS0wNi0wMSwxLjI2NzUKMjAxOS0wNy0wMSwxLjI0NjEKMjAxOS0wOC0wMSwxLjIxNjAKMjAxOS0wOS0wMSwxLjIzNjkKMjAxOS0xMC0wMSwxLjI2NTcKMjAxOS0xMS0wMSwxLjI4ODQKMjAxOS0xMi0wMSwxLjMxMDkKMjAyMC0wMS0wMSwxLjMwNzYKMjAyMC0wMi0wMSwxLjI5NTMKMjAyMC0wMy0wMSwxLjIzNjkKMjAyMC0wNC0wMSwxLjI0MjAKMjAyMC0wNS0wMSwxLjIzMDIKMjAyMC0wNi0wMSwxLjI1MjMKMjAyMC0wNy0wMSwxLjI3MDEKMjAyMC0wOC0wMSwxLjMxNDMKMjAyMC0wOS0wMSwxLjI5NDcKMjAyMC0xMC0wMSwxLjI5ODAKMjAyMC0xMS0wMSwxLjMxOTgKMjAyMC0xMi0wMSwxLjM0MzQKMjAyMS0wMS0wMSwxLjM2NDEKMjAyMS0wMi0wMSwxLjM4NjcKMjAyMS0wMy0wMSwxLjM4NjMKMjAyMS0wNC0wMSwxLjM4NDUKMjAyMS0wNS0wMSwxLjQwODQKMjAyMS0wNi0wMSwxLjQwMjUKMjAyMS0wNy0wMSwxLjM4MDgKMjAyMS0wOC0wMSwxLjM3OTcKMjAyMS0wOS0wMSwxLjM3MzIKMjAyMS0xMC0wMSwxLjM3MDEKMjAyMS0xMS0wMSwxLjM0NjMKMjAyMS0xMi0wMSwxLjMzMDMKMjAyMi0wMS0wMSwxLjM1NTUKMjAyMi0wMi0wMSwxLjM1NDAKMjAyMi0wMy0wMSwxLjMxNjgKMjAyMi0wNC0wMSwxLjI5MzMKMjAyMi0wNS0wMSwxLjI0MzgKMjAyMi0wNi0wMSwxLjIzMjAKMjAyMi0wNy0wMSwxLjE5ODcKMjAyMi0wOC0wMSwxLjE5ODMKMjAyMi0wOS0wMSwxLjEzMjAKMjAyMi0xMC0wMSwxLjEzMzIKMjAyMi0xMS0wMSwxLjE3MjcKMjAyMi0xMi0wMSwxLjIxODAKMjAyMy0wMS0wMSwxLjIyMzcKMjAyMy0wMi0wMSwxLjIwODQKMjAyMy0wMy0wMSwxLjIxMzgKMjAyMy0wNC0wMSwxLjI0NDYKMjAyMy0wNS0wMSwxLjI0ODQKMjAyMy0wNi0wMSwxLjI2MjcKMjAyMy0wNy0wMSwxLjI4OTMKMjAyMy0wOC0wMSwxLjI3MDYKMjAyMy0wOS0wMSwxLjIzODEKMjAyMy0xMC0wMSwxLjIxNzUKMjAyMy0xMS0wMSwxLjI0MzcKMjAyMy0xMi0wMSwxLjI2NTcKMjAyNC0wMS0wMSwxLjI3MDEKMjAyNC0wMi0wMSwxLjI2MzAKMjAyNC0wMy0wMSwxLjI3MTMKMjAyNC0wNC0wMSwxLjI1MTcKMjAyNC0wNS0wMSwxLjI2MzYKMjAyNC0wNi0wMSwxLjI3MTYKMjAyNC0wNy0wMSwxLjI4NzAKMjAyNC0wOC0wMSwxLjI5NDUKMjAyNC0wOS0wMSwxLjMyMTkKMjAyNC0xMC0wMSwxLjMwNDMKMjAyNC0xMS0wMSwxLjI3MzgKMjAyNC0xMi0wMSwxLjI2NDcKMjAyNS0wMS0wMSwxLjIzNTQKMjAyNS0wMi0wMSwxLjI1NDIKMjAyNS0wMy0wMSwxLjI5MTMKMjAyNS0wNC0wMSwxLjMxNDQKMjAyNS0wNS0wMSwxLjMzNTgKMjAyNS0wNi0wMSwxLjM1NzcKMjAyNS0wNy0wMSwxLjM0ODkKMjAyNS0wOC0wMSwxLjM0NTYKMjAyNS0wOS0wMSwxLjM1MDYKMjAyNS0xMC0wMSwxLjMzNTcKMjAyNS0xMS0wMSwxLjMxMzkKMjAyNS0xMi0wMSwxLjMzODcKMjAyNi0wMS0wMSwxLjM1MzYKMjAyNi0wMi0wMSwxLjM1NzkKMjAyNi0wMy0wMSwxLjMzMzkK",
-    "EXUSEU": "b2JzZXJ2YXRpb25fZGF0ZSxFWFVTRVUKMTk5OS0wMS0wMSwxLjE1OTEKMTk5OS0wMi0wMSwxLjEyMDMKMTk5OS0wMy0wMSwxLjA4ODYKMTk5OS0wNC0wMSwxLjA3MDEKMTk5OS0wNS0wMSwxLjA2MzAKMTk5OS0wNi0wMSwxLjAzNzcKMTk5OS0wNy0wMSwxLjAzNzAKMTk5OS0wOC0wMSwxLjA2MDUKMTk5OS0wOS0wMSwxLjA0OTcKMTk5OS0xMC0wMSwxLjA3MDYKMTk5OS0xMS0wMSwxLjAzMjgKMTk5OS0xMi0wMSwxLjAxMTAKMjAwMC0wMS0wMSwxLjAxMzEKMjAwMC0wMi0wMSwwLjk4MzQKMjAwMC0wMy0wMSwwLjk2NDMKMjAwMC0wNC0wMSwwLjk0NDkKMjAwMC0wNS0wMSwwLjkwNTkKMjAwMC0wNi0wMSwwLjk1MDUKMjAwMC0wNy0wMSwwLjkzODYKMjAwMC0wOC0wMSwwLjkwNDUKMjAwMC0wOS0wMSwwLjg2OTUKMjAwMC0xMC0wMSwwLjg1MjUKMjAwMC0xMS0wMSwwLjg1NTIKMjAwMC0xMi0wMSwwLjg5ODMKMjAwMS0wMS0wMSwwLjkzNzYKMjAwMS0wMi0wMSwwLjkyMDUKMjAwMS0wMy0wMSwwLjkwODMKMjAwMS0wNC0wMSwwLjg5MjUKMjAwMS0wNS0wMSwwLjg3NTMKMjAwMS0wNi0wMSwwLjg1MzAKMjAwMS0wNy0wMSwwLjg2MTUKMjAwMS0wOC0wMSwwLjkwMTQKMjAwMS0wOS0wMSwwLjkxMTQKMjAwMS0xMC0wMSwwLjkwNTAKMjAwMS0xMS0wMSwwLjg4ODMKMjAwMS0xMi0wMSwwLjg5MTIKMjAwMi0wMS0wMSwwLjg4MzIKMjAwMi0wMi0wMSwwLjg3MDcKMjAwMi0wMy0wMSwwLjg3NjYKMjAwMi0wNC0wMSwwLjg4NjAKMjAwMi0wNS0wMSwwLjkxNzAKMjAwMi0wNi0wMSwwLjk1NjEKMjAwMi0wNy0wMSwwLjk5MzUKMjAwMi0wOC0wMSwwLjk3ODEKMjAwMi0wOS0wMSwwLjk4MDYKMjAwMi0xMC0wMSwwLjk4MTIKMjAwMi0xMS0wMSwxLjAwMTMKMjAwMi0xMi0wMSwxLjAxOTQKMjAwMy0wMS0wMSwxLjA2MjIKMjAwMy0wMi0wMSwxLjA3ODUKMjAwMy0wMy0wMSwxLjA3OTcKMjAwMy0wNC0wMSwxLjA4NjIKMjAwMy0wNS0wMSwxLjE1NTYKMjAwMy0wNi0wMSwxLjE2NzQKMjAwMy0wNy0wMSwxLjEzNjUKMjAwMy0wOC0wMSwxLjExNTUKMjAwMy0wOS0wMSwxLjEyNjcKMjAwMy0xMC0wMSwxLjE3MTQKMjAwMy0xMS0wMSwxLjE3MTAKMjAwMy0xMi0wMSwxLjIyOTgKMjAwNC0wMS0wMSwxLjI2MzgKMjAwNC0wMi0wMSwxLjI2NDAKMjAwNC0wMy0wMSwxLjIyNjEKMjAwNC0wNC0wMSwxLjE5ODkKMjAwNC0wNS0wMSwxLjIwMDAKMjAwNC0wNi0wMSwxLjIxNDYKMjAwNC0wNy0wMSwxLjIyNjYKMjAwNC0wOC0wMSwxLjIxOTEKMjAwNC0wOS0wMSwxLjIyMjQKMjAwNC0xMC0wMSwxLjI1MDcKMjAwNC0xMS0wMSwxLjI5OTcKMjAwNC0xMi0wMSwxLjM0MDYKMjAwNS0wMS0wMSwxLjMxMjMKMjAwNS0wMi0wMSwxLjMwMTMKMjAwNS0wMy0wMSwxLjMxODUKMjAwNS0wNC0wMSwxLjI5NDMKMjAwNS0wNS0wMSwxLjI2OTcKMjAwNS0wNi0wMSwxLjIxNTUKMjAwNS0wNy0wMSwxLjIwNDEKMjAwNS0wOC0wMSwxLjIyOTUKMjAwNS0wOS0wMSwxLjIyMzQKMjAwNS0xMC0wMSwxLjIwMjIKMjAwNS0xMS0wMSwxLjE3ODkKMjAwNS0xMi0wMSwxLjE4NjEKMjAwNi0wMS0wMSwxLjIxMjYKMjAwNi0wMi0wMSwxLjE5NDAKMjAwNi0wMy0wMSwxLjIwMjgKMjAwNi0wNC0wMSwxLjIyNzMKMjAwNi0wNS0wMSwxLjI3NjcKMjAwNi0wNi0wMSwxLjI2NjEKMjAwNi0wNy0wMSwxLjI2ODEKMjAwNi0wOC0wMSwxLjI4MTAKMjAwNi0wOS0wMSwxLjI3MjIKMjAwNi0xMC0wMSwxLjI2MTcKMjAwNi0xMS0wMSwxLjI4ODgKMjAwNi0xMi0wMSwxLjMyMDUKMjAwNy0wMS0wMSwxLjI5OTMKMjAwNy0wMi0wMSwxLjMwODAKMjAwNy0wMy0wMSwxLjMyNDYKMjAwNy0wNC0wMSwxLjM1MTMKMjAwNy0wNS0wMSwxLjM1MTgKMjAwNy0wNi0wMSwxLjM0MjEKMjAwNy0wNy0wMSwxLjM3MjYKMjAwNy0wOC0wMSwxLjM2MjYKMjAwNy0wOS0wMSwxLjM5MTAKMjAwNy0xMC0wMSwxLjQyMzMKMjAwNy0xMS0wMSwxLjQ2ODMKMjAwNy0xMi0wMSwxLjQ1NTkKMjAwOC0wMS0wMSwxLjQ3MjgKMjAwOC0wMi0wMSwxLjQ3NTkKMjAwOC0wMy0wMSwxLjU1MjAKMjAwOC0wNC0wMSwxLjU3NTQKMjAwOC0wNS0wMSwxLjU1NTQKMjAwOC0wNi0wMSwxLjU1NjIKMjAwOC0wNy0wMSwxLjU3NTkKMjAwOC0wOC0wMSwxLjQ5NTUKMjAwOC0wOS0wMSwxLjQzNDIKMjAwOC0xMC0wMSwxLjMyNjYKMjAwOC0xMS0wMSwxLjI3NDQKMjAwOC0xMi0wMSwxLjM1MTEKMjAwOS0wMS0wMSwxLjMyNDQKMjAwOS0wMi0wMSwxLjI3OTcKMjAwOS0wMy0wMSwxLjMwNTAKMjAwOS0wNC0wMSwxLjMxOTkKMjAwOS0wNS0wMSwxLjM2NDYKMjAwOS0wNi0wMSwxLjQwMTQKMjAwOS0wNy0wMSwxLjQwOTIKMjAwOS0wOC0wMSwxLjQyNjYKMjAwOS0wOS0wMSwxLjQ1NzUKMjAwOS0xMC0wMSwxLjQ4MjEKMjAwOS0xMS0wMSwxLjQ5MDgKMjAwOS0xMi0wMSwxLjQ1NzkKMjAxMC0wMS0wMSwxLjQyNjYKMjAxMC0wMi0wMSwxLjM2ODAKMjAxMC0wMy0wMSwxLjM1NzAKMjAxMC0wNC0wMSwxLjM0MTcKMjAxMC0wNS0wMSwxLjI1NjMKMjAxMC0wNi0wMSwxLjIyMjMKMjAxMC0wNy0wMSwxLjI4MTEKMjAxMC0wOC0wMSwxLjI5MDMKMjAxMC0wOS0wMSwxLjMxMDMKMjAxMC0xMC0wMSwxLjM5MDEKMjAxMC0xMS0wMSwxLjM2NTQKMjAxMC0xMi0wMSwxLjMyMjEKMjAxMS0wMS0wMSwxLjMzNzEKMjAxMS0wMi0wMSwxLjM2NTYKMjAxMS0wMy0wMSwxLjQwMjAKMjAxMS0wNC0wMSwxLjQ0NjAKMjAxMS0wNS0wMSwxLjQzMzUKMjAxMS0wNi0wMSwxLjQ0MDMKMjAxMS0wNy0wMSwxLjQyNzUKMjAxMS0wOC0wMSwxLjQzMzMKMjAxMS0wOS0wMSwxLjM3NDcKMjAxMS0xMC0wMSwxLjM3MzIKMjAxMS0xMS0wMSwxLjM1NTgKMjAxMS0xMi0wMSwxLjMxNTUKMjAxMi0wMS0wMSwxLjI5MTAKMjAxMi0wMi0wMSwxLjMyMzgKMjAxMi0wMy0wMSwxLjMyMDgKMjAxMi0wNC0wMSwxLjMxNjAKMjAxMi0wNS0wMSwxLjI4MDYKMjAxMi0wNi0wMSwxLjI1NDEKMjAxMi0wNy0wMSwxLjIyNzgKMjAxMi0wOC0wMSwxLjI0MDYKMjAxMi0wOS0wMSwxLjI4ODUKMjAxMi0xMC0wMSwxLjI5NzQKMjAxMi0xMS0wMSwxLjI4MzcKMjAxMi0xMi0wMSwxLjMxMTkKMjAxMy0wMS0wMSwxLjMzMDQKMjAxMy0wMi0wMSwxLjMzNDcKMjAxMy0wMy0wMSwxLjI5NTMKMjAxMy0wNC0wMSwxLjMwMjUKMjAxMy0wNS0wMSwxLjI5ODMKMjAxMy0wNi0wMSwxLjMxOTcKMjAxMy0wNy0wMSwxLjMwODgKMjAxMy0wOC0wMSwxLjMzMTQKMjAxMy0wOS0wMSwxLjMzNjQKMjAxMy0xMC0wMSwxLjM2NDYKMjAxMy0xMS0wMSwxLjM0OTEKMjAxMy0xMi0wMSwxLjM3MDgKMjAxNC0wMS0wMSwxLjM2MTgKMjAxNC0wMi0wMSwxLjM2NjUKMjAxNC0wMy0wMSwxLjM4MjgKMjAxNC0wNC0wMSwxLjM4MTAKMjAxNC0wNS0wMSwxLjM3MzkKMjAxNC0wNi0wMSwxLjM1OTUKMjAxNC0wNy0wMSwxLjM1MzMKMjAxNC0wOC0wMSwxLjMzMTUKMjAxNC0wOS0wMSwxLjI4ODkKMjAxNC0xMC0wMSwxLjI2NzcKMjAxNC0xMS0wMSwxLjI0NzMKMjAxNC0xMi0wMSwxLjIzMjkKMjAxNS0wMS0wMSwxLjE2MTUKMjAxNS0wMi0wMSwxLjEzNTAKMjAxNS0wMy0wMSwxLjA4MTkKMjAxNS0wNC0wMSwxLjA4MjIKMjAxNS0wNS0wMSwxLjExNjcKMjAxNS0wNi0wMSwxLjEyMjYKMjAxNS0wNy0wMSwxLjA5OTcKMjAxNS0wOC0wMSwxLjExMzYKMjAxNS0wOS0wMSwxLjEyMjkKMjAxNS0xMC0wMSwxLjEyMjgKMjAxNS0xMS0wMSwxLjA3MjcKMjAxNS0xMi0wMSwxLjA4ODkKMjAxNi0wMS0wMSwxLjA4NTUKMjAxNi0wMi0wMSwxLjEwOTIKMjAxNi0wMy0wMSwxLjExMzQKMjAxNi0wNC0wMSwxLjEzNDYKMjAxNi0wNS0wMSwxLjEzMTIKMjAxNi0wNi0wMSwxLjEyMzIKMjAxNi0wNy0wMSwxLjEwNTUKMjAxNi0wOC0wMSwxLjEyMDcKMjAxNi0wOS0wMSwxLjEyMTgKMjAxNi0xMC0wMSwxLjEwMTQKMjAxNi0xMS0wMSwxLjA3OTIKMjAxNi0xMi0wMSwxLjA1NDUKMjAxNy0wMS0wMSwxLjA2MzUKMjAxNy0wMi0wMSwxLjA2NTAKMjAxNy0wMy0wMSwxLjA2OTEKMjAxNy0wNC0wMSwxLjA3MTQKMjAxNy0wNS0wMSwxLjEwNTAKMjAxNy0wNi0wMSwxLjEyMzMKMjAxNy0wNy0wMSwxLjE1MzAKMjAxNy0wOC0wMSwxLjE4MTMKMjAxNy0wOS0wMSwxLjE5MTMKMjAxNy0xMC0wMSwxLjE3NTUKMjAxNy0xMS0wMSwxLjE3NDMKMjAxNy0xMi0wMSwxLjE4MzYKMjAxOC0wMS0wMSwxLjIxOTcKMjAxOC0wMi0wMSwxLjIzNDAKMjAxOC0wMy0wMSwxLjIzMzQKMjAxOC0wNC0wMSwxLjIyNzAKMjAxOC0wNS0wMSwxLjE4MjMKMjAxOC0wNi0wMSwxLjE2NzkKMjAxOC0wNy0wMSwxLjE2ODUKMjAxOC0wOC0wMSwxLjE1NDcKMjAxOC0wOS0wMSwxLjE2NjcKMjAxOC0xMC0wMSwxLjE0ODgKMjAxOC0xMS0wMSwxLjEzNjQKMjAxOC0xMi0wMSwxLjEzODAKMjAxOS0wMS0wMSwxLjE0MTgKMjAxOS0wMi0wMSwxLjEzNDkKMjAxOS0wMy0wMSwxLjEyOTYKMjAxOS0wNC0wMSwxLjEyMzQKMjAxOS0wNS0wMSwxLjExODcKMjAxOS0wNi0wMSwxLjEyOTUKMjAxOS0wNy0wMSwxLjEyMTEKMjAxOS0wOC0wMSwxLjExMjkKMjAxOS0wOS0wMSwxLjEwMTEKMjAxOS0xMC0wMSwxLjEwNTgKMjAxOS0xMS0wMSwxLjEwNTEKMjAxOS0xMi0wMSwxLjExMTQKMjAyMC0wMS0wMSwxLjEwOTgKMjAyMC0wMi0wMSwxLjA5MTEKMjAyMC0wMy0wMSwxLjEwNDYKMjAyMC0wNC0wMSwxLjA4NzEKMjAyMC0wNS0wMSwxLjA5MDcKMjAyMC0wNi0wMSwxLjEyNTkKMjAyMC0wNy0wMSwxLjE0ODgKMjAyMC0wOC0wMSwxLjE4MzEKMjAyMC0wOS0wMSwxLjE3ODUKMjAyMC0xMC0wMSwxLjE3NjgKMjAyMC0xMS0wMSwxLjE4MjYKMjAyMC0xMi0wMSwxLjIxNjgKMjAyMS0wMS0wMSwxLjIxNzgKMjAyMS0wMi0wMSwxLjIwOTQKMjAyMS0wMy0wMSwxLjE5MDIKMjAyMS0wNC0wMSwxLjE5NjUKMjAyMS0wNS0wMSwxLjIxNDYKMjAyMS0wNi0wMSwxLjIwNDgKMjAyMS0wNy0wMSwxLjE4MjEKMjAyMS0wOC0wMSwxLjE3NjcKMjAyMS0wOS0wMSwxLjE3NjUKMjAyMS0xMC0wMSwxLjE2MDAKMjAyMS0xMS0wMSwxLjE0MTYKMjAyMS0xMi0wMSwxLjEzMDEKMjAyMi0wMS0wMSwxLjEzMTcKMjAyMi0wMi0wMSwxLjEzNDkKMjAyMi0wMy0wMSwxLjEwMTkKMjAyMi0wNC0wMSwxLjA4MDMKMjAyMi0wNS0wMSwxLjA1NjcKMjAyMi0wNi0wMSwxLjA1NjcKMjAyMi0wNy0wMSwxLjAxNjgKMjAyMi0wOC0wMSwxLjAxMjkKMjAyMi0wOS0wMSwwLjk4OTkKMjAyMi0xMC0wMSwwLjk4NTMKMjAyMi0xMS0wMSwxLjAxOTIKMjAyMi0xMi0wMSwxLjA1OTEKMjAyMy0wMS0wMSwxLjA3NzcKMjAyMy0wMi0wMSwxLjA3MDIKMjAyMy0wMy0wMSwxLjA3MTEKMjAyMy0wNC0wMSwxLjA5NjIKMjAyMy0wNS0wMSwxLjA4NjcKMjAyMy0wNi0wMSwxLjA4NDAKMjAyMy0wNy0wMSwxLjEwNjcKMjAyMy0wOC0wMSwxLjA5MTAKMjAyMy0wOS0wMSwxLjA2NzIKMjAyMy0xMC0wMSwxLjA1NjUKMjAyMy0xMS0wMSwxLjA4MTkKMjAyMy0xMi0wMSwxLjA5MDkKMjAyNC0wMS0wMSwxLjA4OTkKMjAyNC0wMi0wMSwxLjA3OTMKMjAyNC0wMy0wMSwxLjA4NzAKMjAyNC0wNC0wMSwxLjA3MjQKMjAyNC0wNS0wMSwxLjA4MTAKMjAyNC0wNi0wMSwxLjA3NjMKMjAyNC0wNy0wMSwxLjA4NDcKMjAyNC0wOC0wMSwxLjEwMjAKMjAyNC0wOS0wMSwxLjExMDQKMjAyNC0xMC0wMSwxLjA4OTUKMjAyNC0xMS0wMSwxLjA2MjEKMjAyNC0xMi0wMSwxLjA0NzIKMjAyNS0wMS0wMSwxLjAzNTYKMjAyNS0wMi0wMSwxLjA0MTMKMjAyNS0wMy0wMSwxLjA4MTMKMjAyNS0wNC0wMSwxLjEyMzIKMjAyNS0wNS0wMSwxLjEyNzQKMjAyNS0wNi0wMSwxLjE1MzQKMjAyNS0wNy0wMSwxLjE2NzEKMjAyNS0wOC0wMSwxLjE2NDcKMjAyNS0wOS0wMSwxLjE3MzkKMjAyNS0xMC0wMSwxLjE2NDEKMjAyNS0xMS0wMSwxLjE1NTgKMjAyNS0xMi0wMSwxLjE3MTAKMjAyNi0wMS0wMSwxLjE3NDQKMjAyNi0wMi0wMSwxLjE4MjQKMjAyNi0wMy0wMSwxLjE1NTcK",
 }
 
 CURRENCY_CONFIG = {
     "USD": {"symbol": "$", "series": None, "label": "USD"},
     "GBP": {"symbol": "£", "series": "EXUSUK", "label": "GBP"},
-    "EUR": {"symbol": "€", "series": "EXUSEU", "label": "EUR"},
 }
+
+CPI_ANNUAL_DATA = {'GBP': {1960: 1.0035757, 1961: 3.44749623, 1962: 4.19649888, 1963: 2.01854356, 1964: 3.28158695, 1965: 4.77377455, 1966: 3.90961779, 1967: 2.4821156, 1968: 4.69742799, 1969: 5.44666363, 1970: 6.36656842, 1971: 9.44483742, 1972: 7.07109839, 1973: 9.19603317, 1974: 16.04401119, 1975: 24.20728767, 1976: 16.55952256, 1977: 15.84026675, 1978: 8.26314104, 1979: 13.42127998, 1980: 17.96592427, 1981: 11.87662651, 1982: 8.59886383, 1983: 4.60930327, 1984: 4.96071098, 1985: 6.07139434, 1986: 3.4276094, 1987: 4.14892232, 1988: 4.15535172, 1989: 5.76024909, 1990: 8.06346091, 1991: 7.46178296, 1992: 4.5915493, 1993: 2.55857797, 1994: 2.21901261, 1995: 2.69749518, 1996: 2.85178236, 1997: 2.20114314, 1998: 1.82056164, 1999: 1.7529508, 2000: 1.18295624, 2001: 1.5323496, 2002: 1.52040246, 2003: 1.37650039, 2004: 1.39039757, 2005: 2.08913649, 2006: 2.45566166, 2007: 2.38656151, 2008: 3.52140856, 2009: 1.96173174, 2010: 2.49265472, 2011: 3.85611245, 2012: 2.5732348, 2013: 2.29166667, 2014: 1.45112016, 2015: 0.36804684, 2016: 1.00841737, 2017: 2.55775578, 2018: 2.2928399, 2019: 1.7381046, 2020: 0.9894867, 2021: 2.5183711, 2022: 7.92204883, 2023: 6.79396707, 2024: 3.27157295}, 'USD': {1960: 1.45797599, 1961: 1.07072415, 1962: 1.19877335, 1963: 1.23966942, 1964: 1.27891156, 1965: 1.58516926, 1966: 3.01507538, 1967: 2.77278562, 1968: 4.27179615, 1969: 5.4623862, 1970: 5.83825534, 1971: 4.29276669, 1972: 3.27227825, 1973: 6.17776006, 1974: 11.0548048, 1975: 9.14314686, 1976: 5.74481264, 1977: 6.50168399, 1978: 7.63096384, 1979: 11.25447113, 1980: 13.54920197, 1981: 10.33471534, 1982: 6.131427, 1983: 3.21243523, 1984: 4.30053548, 1985: 3.54564415, 1986: 1.89804772, 1987: 3.66456322, 1988: 4.07774111, 1989: 4.82700303, 1990: 5.39795644, 1991: 4.23496396, 1992: 3.02881968, 1993: 2.95165697, 1994: 2.60744159, 1995: 2.80541969, 1996: 2.9312042, 1997: 2.33768994, 1998: 1.5522791, 1999: 2.1880272, 2000: 3.37685727, 2001: 2.82617112, 2002: 1.58603163, 2003: 2.27009497, 2004: 2.67723669, 2005: 3.39274685, 2006: 3.2259441, 2007: 2.85267248, 2008: 3.8391003, 2009: -0.35554627, 2010: 1.64004344, 2011: 3.15684157, 2012: 2.06933727, 2013: 1.46483266, 2014: 1.62222298, 2015: 0.11862714, 2016: 1.26158321, 2017: 2.13011, 2018: 2.4425833, 2019: 1.81221008, 2020: 1.2335844, 2021: 4.69785886, 2022: 8.00279982, 2023: 4.11633838, 2024: 2.9495252}}
+
+CPI_SOURCE_METADATA = {'GBP': {'country': 'United Kingdom', 'country_code': 'GBR'}, 'USD': {'country': 'United States', 'country_code': 'USA'}}
 
 
 @dataclass
@@ -38,6 +40,7 @@ class HistoricalSimulationResult:
     start_dates: pd.Series
     end_dates: pd.Series
     final_values: pd.Series
+    real_final_values: pd.Series
     total_fees: pd.Series
     max_drawdowns: pd.Series
     stats: pd.Series
@@ -48,6 +51,7 @@ class MonteCarloSimulationResult:
     years: int
     total_contribution: float
     final_values: pd.Series
+    real_final_values: pd.Series
     total_fees: pd.Series
     max_drawdowns: pd.Series
     stats: pd.Series
@@ -588,6 +592,66 @@ def apply_currency_adjustment(returns_df: pd.DataFrame, output_currency: str) ->
     return merged[["date", "return", "fx_covered"]].copy(), diagnostics
 
 
+
+def add_historical_cpi(returns_df: pd.DataFrame, output_currency: str) -> tuple[pd.DataFrame, dict]:
+    out = returns_df.copy()
+    cpi_map = CPI_ANNUAL_DATA.get(output_currency, {})
+    meta = CPI_SOURCE_METADATA.get(output_currency, {"country": output_currency, "country_code": output_currency})
+    out["year"] = out["date"].dt.year.astype(int)
+    out["cpi_annual_pct"] = out["year"].map(cpi_map).astype(float)
+    out["cpi_covered"] = out["cpi_annual_pct"].notna()
+    out["monthly_inflation"] = np.where(
+        out["cpi_covered"],
+        (1.0 + out["cpi_annual_pct"] / 100.0) ** (1.0 / 12.0) - 1.0,
+        np.nan,
+    )
+    covered = out.loc[out["cpi_covered"], "date"]
+    diagnostics = {
+        "output_currency": output_currency,
+        "country": meta.get("country", output_currency),
+        "country_code": meta.get("country_code", output_currency),
+        "coverage_start": covered.min() if not covered.empty else None,
+        "coverage_end": covered.max() if not covered.empty else None,
+        "covered_months": int(out["cpi_covered"].sum()),
+        "total_months": int(len(out)),
+        "latest_cpi_year": max(cpi_map.keys()) if cpi_map else None,
+        "source": "World Bank WDI / IMF indicator FP.CPI.TOTL.ZG, uploaded workbook",
+    }
+    return out.drop(columns=["year"]), diagnostics
+
+
+def cumulative_inflation_factor(monthly_inflation: np.ndarray) -> float:
+    arr = np.asarray(monthly_inflation, dtype=float)
+    if len(arr) == 0 or np.isnan(arr).any():
+        return float("nan")
+    gross = 1.0 + arr
+    if (gross <= 0).any():
+        return float("nan")
+    return float(np.prod(gross))
+
+
+def render_cpi_diagnostics(diag: dict) -> None:
+    with st.expander("Historical CPI / real-value review", expanded=False):
+        coverage_start = diag["coverage_start"].strftime("%Y-%m") if diag["coverage_start"] is not None else "n/a"
+        coverage_end = diag["coverage_end"].strftime("%Y-%m") if diag["coverage_end"] is not None else "n/a"
+        latest_year = diag["latest_cpi_year"] if diag["latest_cpi_year"] is not None else "n/a"
+        st.markdown(
+            f"""
+**Method used**
+- Real/today's-money values use **historical CPI inflation**, not a fixed inflation assumption.
+- CPI source: **{diag['source']}**.
+- Country used for CPI: **{diag['country']} ({diag['country_code']})**.
+- Annual CPI is converted into an equivalent monthly inflation rate and compounded over each investment window.
+- Windows or Monte Carlo paths with incomplete CPI coverage are excluded from CPI-adjusted real-value percentiles, but they remain in nominal results.
+
+**Coverage**
+- CPI coverage window in the active sample: **{coverage_start}** to **{coverage_end}**.
+- CPI-covered months: **{diag['covered_months']:,}** of **{diag['total_months']:,}**.
+- Latest CPI year in the uploaded file: **{latest_year}**.
+            """
+        )
+
+
 def render_fx_diagnostics(diag: dict, only_full_fx_windows: bool) -> None:
     with st.expander("FX conversion review", expanded=False):
         if diag["output_currency"] == "USD":
@@ -726,14 +790,15 @@ def cashflow_irr_from_final_value(final_value: float, years: int, initial_invest
     return float((low + high) / 2.0)
 
 
-def summarise_distribution(final_values: pd.Series, start_dates: pd.Series, end_dates: pd.Series, total_contribution: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str, total_fees: pd.Series, max_drawdowns: pd.Series, target_wealth: float, inflation_annual: float) -> pd.Series:
+def summarise_distribution(final_values: pd.Series, real_final_values: pd.Series, start_dates: pd.Series, end_dates: pd.Series, total_contribution: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str, total_fees: pd.Series, max_drawdowns: pd.Series, target_wealth: float) -> pd.Series:
     if final_values.empty:
         raise ValueError("No valid rolling windows were available for this horizon and filter combination.")
 
     wealth_multiple = final_values / total_contribution if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
     paid_in_annualised = (wealth_multiple ** (1 / years) - 1) if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
-    real_discount = (1.0 + inflation_annual) ** years
-    real_values = final_values / real_discount if real_discount > 0 else final_values.copy()
+    real_values = pd.Series(real_final_values, dtype="float64")
+    real_count = int(real_values.notna().sum())
+    real_coverage_share = float(real_values.notna().mean()) if len(real_values) else float("nan")
 
     worst_idx = final_values.idxmin()
     best_idx = final_values.idxmax()
@@ -743,6 +808,8 @@ def summarise_distribution(final_values: pd.Series, start_dates: pd.Series, end_
 
     return pd.Series({
         "count": int(final_values.count()),
+        "real_count": real_count,
+        "cpi_coverage_share": real_coverage_share,
         "total_contribution": float(total_contribution),
         "min": float(final_values.min()),
         "p05": float(final_values.quantile(0.05)),
@@ -753,9 +820,9 @@ def summarise_distribution(final_values: pd.Series, start_dates: pd.Series, end_
         "p95": float(final_values.quantile(0.95)),
         "max": float(final_values.max()),
         "std": float(final_values.std(ddof=1)),
-        "real_p10": float(real_values.quantile(0.10)),
-        "real_median": float(real_values.median()),
-        "real_p90": float(real_values.quantile(0.90)),
+        "real_p10": float(real_values.quantile(0.10)) if real_count else float("nan"),
+        "real_median": float(real_values.median()) if real_count else float("nan"),
+        "real_p90": float(real_values.quantile(0.90)) if real_count else float("nan"),
         "wealth_multiple_median": float(wealth_multiple.median()) if total_contribution > 0 else float("nan"),
         "paid_in_annualised_median": float(paid_in_annualised.median()) if total_contribution > 0 else float("nan"),
         "mwr_p10": cashflow_irr_from_final_value(p10_final, years, initial_investment, monthly_contribution, contribution_timing),
@@ -774,15 +841,16 @@ def summarise_distribution(final_values: pd.Series, start_dates: pd.Series, end_
     })
 
 
-def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_investment: float, monthly_contribution: float, fund_fee_annual: float, platform_fee_annual: float, platform_fee_monthly_min: float, platform_fee_annual_cap: float, contribution_timing: str, only_full_fx_windows: bool, target_wealth: float, inflation_annual: float) -> HistoricalSimulationResult:
+def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_investment: float, monthly_contribution: float, fund_fee_annual: float, platform_fee_annual: float, platform_fee_monthly_min: float, platform_fee_annual_cap: float, contribution_timing: str, only_full_fx_windows: bool, target_wealth: float) -> HistoricalSimulationResult:
     months = years * 12
     n = len(returns_df)
     if n < months:
         raise ValueError(f"Dataset has {n} rows, but needs at least {months} rows for a {years}-year rolling study.")
 
-    final_values, start_dates, end_dates, total_fees_all, max_drawdowns_all = [], [], [], [], []
+    final_values, real_final_values, start_dates, end_dates, total_fees_all, max_drawdowns_all = [], [], [], [], [], []
     returns = returns_df["return"].to_numpy(dtype=float)
     fx_covered = returns_df.get("fx_covered", pd.Series(True, index=returns_df.index)).to_numpy(dtype=bool)
+    monthly_inflation = returns_df.get("monthly_inflation", pd.Series(np.nan, index=returns_df.index)).to_numpy(dtype=float)
     dates = returns_df["date"].reset_index(drop=True)
 
     for start_idx in range(0, n - months + 1):
@@ -808,7 +876,11 @@ def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_inves
             peak = max(peak, portfolio, 1e-12)
             max_dd = min(max_dd, (portfolio / peak) - 1.0)
 
+        inflation_factor = cumulative_inflation_factor(monthly_inflation[start_idx:end_idx])
+        real_portfolio = portfolio / inflation_factor if np.isfinite(inflation_factor) and inflation_factor > 0 else float("nan")
+
         final_values.append(portfolio)
+        real_final_values.append(real_portfolio)
         start_dates.append(dates.iloc[start_idx])
         end_dates.append(dates.iloc[end_idx - 1])
         total_fees_all.append(total_fees_paid)
@@ -818,16 +890,15 @@ def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_inves
         raise ValueError(f"No valid {years}-year rolling windows after applying the FX coverage filter. Reduce the horizon, switch currency, or disable the full-FX-coverage filter.")
 
     final_values_s = pd.Series(final_values, name="final_value")
+    real_final_values_s = pd.Series(real_final_values, name="real_final_value")
     start_dates_s = pd.Series(start_dates, name="start_date")
     end_dates_s = pd.Series(end_dates, name="end_date")
     total_fees_s = pd.Series(total_fees_all, name="total_fees")
     max_drawdowns_s = pd.Series(max_drawdowns_all, name="max_drawdown")
     total_contribution = initial_investment + monthly_contribution * months
 
-    stats = summarise_distribution(final_values_s, start_dates_s, end_dates_s, float(total_contribution), years, initial_investment, monthly_contribution, contribution_timing, total_fees_s, max_drawdowns_s, target_wealth, inflation_annual)
-    return HistoricalSimulationResult(years, float(total_contribution), start_dates_s, end_dates_s, final_values_s, total_fees_s, max_drawdowns_s, stats)
-
-
+    stats = summarise_distribution(final_values_s, real_final_values_s, start_dates_s, end_dates_s, float(total_contribution), years, initial_investment, monthly_contribution, contribution_timing, total_fees_s, max_drawdowns_s, target_wealth)
+    return HistoricalSimulationResult(years, float(total_contribution), start_dates_s, end_dates_s, final_values_s, real_final_values_s, total_fees_s, max_drawdowns_s, stats)
 
 
 def simulate_path_from_returns(
@@ -877,6 +948,7 @@ def simulate_path_from_returns(
 
 def summarise_monte_carlo_distribution(
     final_values: pd.Series,
+    real_final_values: pd.Series,
     total_contribution: float,
     years: int,
     initial_investment: float,
@@ -885,15 +957,15 @@ def summarise_monte_carlo_distribution(
     total_fees: pd.Series,
     max_drawdowns: pd.Series,
     target_wealth: float,
-    inflation_annual: float,
 ) -> pd.Series:
     if final_values.empty:
         raise ValueError("No Monte Carlo paths were generated.")
 
     wealth_multiple = final_values / total_contribution if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
     paid_in_annualised = (wealth_multiple ** (1 / years) - 1) if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
-    real_discount = (1.0 + inflation_annual) ** years
-    real_values = final_values / real_discount if real_discount > 0 else final_values.copy()
+    real_values = pd.Series(real_final_values, dtype="float64")
+    real_count = int(real_values.notna().sum())
+    real_coverage_share = float(real_values.notna().mean()) if len(real_values) else float("nan")
 
     median_final = float(final_values.median())
     p10_final = float(final_values.quantile(0.10))
@@ -901,6 +973,8 @@ def summarise_monte_carlo_distribution(
 
     return pd.Series({
         "count": int(final_values.count()),
+        "real_count": real_count,
+        "cpi_coverage_share": real_coverage_share,
         "total_contribution": float(total_contribution),
         "min": float(final_values.min()),
         "p05": float(final_values.quantile(0.05)),
@@ -911,9 +985,9 @@ def summarise_monte_carlo_distribution(
         "p95": float(final_values.quantile(0.95)),
         "max": float(final_values.max()),
         "std": float(final_values.std(ddof=1)),
-        "real_p10": float(real_values.quantile(0.10)),
-        "real_median": float(real_values.median()),
-        "real_p90": float(real_values.quantile(0.90)),
+        "real_p10": float(real_values.quantile(0.10)) if real_count else float("nan"),
+        "real_median": float(real_values.median()) if real_count else float("nan"),
+        "real_p90": float(real_values.quantile(0.90)) if real_count else float("nan"),
         "wealth_multiple_median": float(wealth_multiple.median()) if total_contribution > 0 else float("nan"),
         "paid_in_annualised_median": float(paid_in_annualised.median()) if total_contribution > 0 else float("nan"),
         "mwr_p10": cashflow_irr_from_final_value(p10_final, years, initial_investment, monthly_contribution, contribution_timing),
@@ -940,17 +1014,11 @@ def simulate_monte_carlo_block_bootstrap(
     contribution_timing: str,
     only_full_fx_windows: bool,
     target_wealth: float,
-    inflation_annual: float,
     n_simulations: int,
     block_months: int,
     random_seed: int,
 ) -> MonteCarloSimulationResult:
-    """Block-bootstrap Monte Carlo using historical monthly returns.
-
-    The purpose is not to predict the future precisely. It resamples contiguous
-    blocks of historical monthly returns, preserving some volatility clustering
-    and regime behaviour better than a single-month shuffle.
-    """
+    """Block-bootstrap Monte Carlo using historical monthly returns and matching CPI months where available."""
     months = int(years * 12)
     n_simulations = int(n_simulations)
     block_months = int(block_months)
@@ -966,7 +1034,9 @@ def simulate_monte_carlo_block_bootstrap(
     if only_full_fx_windows:
         data = data.loc[data.get("fx_covered", pd.Series(True, index=data.index)).astype(bool)].reset_index(drop=True)
 
-    available_returns = data["return"].dropna().to_numpy(dtype=float)
+    data = data.dropna(subset=["return"]).reset_index(drop=True)
+    available_returns = data["return"].to_numpy(dtype=float)
+    available_inflation = data.get("monthly_inflation", pd.Series(np.nan, index=data.index)).to_numpy(dtype=float)
     n = len(available_returns)
     if n < block_months:
         raise ValueError(
@@ -976,14 +1046,17 @@ def simulate_monte_carlo_block_bootstrap(
 
     rng = np.random.default_rng(int(random_seed))
     max_start = n - block_months + 1
-    final_values, total_fees_all, max_drawdowns_all = [], [], []
+    final_values, real_final_values, total_fees_all, max_drawdowns_all = [], [], [], []
 
     for _ in range(n_simulations):
-        sampled = []
-        while len(sampled) < months:
+        sampled_returns = []
+        sampled_inflation = []
+        while len(sampled_returns) < months:
             start = int(rng.integers(0, max_start))
-            sampled.extend(available_returns[start:start + block_months])
-        path_returns = np.asarray(sampled[:months], dtype=float)
+            sampled_returns.extend(available_returns[start:start + block_months])
+            sampled_inflation.extend(available_inflation[start:start + block_months])
+        path_returns = np.asarray(sampled_returns[:months], dtype=float)
+        path_inflation = np.asarray(sampled_inflation[:months], dtype=float)
         final_value, fees_paid, max_dd = simulate_path_from_returns(
             path_returns,
             initial_investment,
@@ -994,16 +1067,21 @@ def simulate_monte_carlo_block_bootstrap(
             platform_fee_annual_cap,
             contribution_timing,
         )
+        inflation_factor = cumulative_inflation_factor(path_inflation)
+        real_value = final_value / inflation_factor if np.isfinite(inflation_factor) and inflation_factor > 0 else float("nan")
         final_values.append(final_value)
+        real_final_values.append(real_value)
         total_fees_all.append(fees_paid)
         max_drawdowns_all.append(max_dd)
 
     final_values_s = pd.Series(final_values, name="final_value")
+    real_final_values_s = pd.Series(real_final_values, name="real_final_value")
     total_fees_s = pd.Series(total_fees_all, name="total_fees")
     max_drawdowns_s = pd.Series(max_drawdowns_all, name="max_drawdown")
     total_contribution = initial_investment + monthly_contribution * months
     stats = summarise_monte_carlo_distribution(
         final_values_s,
+        real_final_values_s,
         float(total_contribution),
         years,
         initial_investment,
@@ -1012,18 +1090,19 @@ def simulate_monte_carlo_block_bootstrap(
         total_fees_s,
         max_drawdowns_s,
         target_wealth,
-        inflation_annual,
     )
     return MonteCarloSimulationResult(
         years=years,
         total_contribution=float(total_contribution),
         final_values=final_values_s,
+        real_final_values=real_final_values_s,
         total_fees=total_fees_s,
         max_drawdowns=max_drawdowns_s,
         stats=stats,
         simulations=n_simulations,
         block_months=block_months,
     )
+
 
 def fmt_currency(value: float, currency_symbol: str) -> str:
     if pd.isna(value):
@@ -1069,17 +1148,17 @@ def _mini_card(label: str, value: str) -> str:
     )
 
 
-def render_metric_cards(stats: pd.Series, currency_symbol: str, target_wealth: float, inflation_annual: float) -> None:
+def render_metric_cards(stats: pd.Series, currency_symbol: str, target_wealth: float) -> None:
     range_value = f"{fmt_currency(stats['p10'], currency_symbol)} → {fmt_currency(stats['p90'], currency_symbol)}"
-    third_label = "Median today's money" if inflation_annual > 0 else "Mean ending wealth"
-    third_value = fmt_currency(stats["real_median"], currency_symbol) if inflation_annual > 0 else fmt_currency(stats["mean"], currency_symbol)
+    third_label = "Median CPI-adjusted"
+    third_value = fmt_currency(stats.get("real_median", float("nan")), currency_symbol)
     fifth_label = "Windows above target" if target_wealth > 0 else "Windows below paid-in"
     fifth_value = fmt_percent(stats["prob_above_target"]) if target_wealth > 0 else fmt_percent(stats["prob_below_contribution"])
 
     html = "".join([
         _metric_card("Median ending wealth", fmt_currency(stats["median"], currency_symbol), "Middle historical rolling outcome."),
         _metric_card("10th → 90th range", range_value, "Central historical outcome band.", wide=True),
-        _metric_card(third_label, third_value, "Inflation-adjusted view." if inflation_annual > 0 else "Average across all windows."),
+        _metric_card(third_label, third_value, f"Historical CPI where covered · {int(stats.get('real_count', 0)):,} windows."),
         _metric_card("Median MWR", fmt_percent(stats["mwr_median"]), "Money-weighted annual return estimate."),
         _metric_card(fifth_label, fifth_value, "Share of historical windows."),
     ])
@@ -1129,7 +1208,7 @@ def build_distribution_chart(result: HistoricalSimulationResult, currency_symbol
     return _chart_layout(fig, f"Ending wealth distribution · {result.years} years", height=525)
 
 
-def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str, inflation_annual: float) -> go.Figure:
+def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str) -> go.Figure:
     fig = go.Figure()
     fig.add_trace(go.Scatter(
         x=summary_df["years"], y=summary_df["p10"], mode="lines",
@@ -1151,11 +1230,11 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str, inflatio
         name="Mean nominal", line=dict(shape="spline", smoothing=1.0, width=3, dash="dot", color="#34d399"),
         hovertemplate=f"Years=%{{x}}<br>Mean={currency_symbol}%{{y:,.0f}}<extra></extra>",
     ))
-    if inflation_annual > 0:
+    if "real_median" in summary_df.columns and summary_df["real_median"].notna().any():
         fig.add_trace(go.Scatter(
             x=summary_df["years"], y=summary_df["real_median"], mode="lines",
-            name="Median today's money", line=dict(shape="spline", smoothing=1.0, width=3, dash="dash", color="#fbbf24"),
-            hovertemplate=f"Years=%{{x}}<br>Real median={currency_symbol}%{{y:,.0f}}<extra></extra>",
+            name="Median CPI-adjusted", line=dict(shape="spline", smoothing=1.0, width=3, dash="dash", color="#fbbf24"),
+            hovertemplate=f"Years=%{{x}}<br>CPI-adjusted median={currency_symbol}%{{y:,.0f}}<extra></extra>",
         ))
     fig.update_xaxes(title_text="Investment horizon (years)")
     fig.update_yaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
@@ -1171,7 +1250,7 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str, inflatio
 
 
 
-def render_monte_carlo_metric_cards(mc_result: MonteCarloSimulationResult, currency_symbol: str, target_wealth: float, inflation_annual: float) -> None:
+def render_monte_carlo_metric_cards(mc_result: MonteCarloSimulationResult, currency_symbol: str, target_wealth: float) -> None:
     stats = mc_result.stats
     range_value = f"{fmt_currency(stats['p10'], currency_symbol)} → {fmt_currency(stats['p90'], currency_symbol)}"
     fifth_label = "MC paths above target" if target_wealth > 0 else "MC paths below paid-in"
@@ -1180,7 +1259,7 @@ def render_monte_carlo_metric_cards(mc_result: MonteCarloSimulationResult, curre
     html = "".join([
         _metric_card("MC median ending wealth", fmt_currency(stats["median"], currency_symbol), f"{mc_result.simulations:,} block-bootstrap paths."),
         _metric_card("MC 10th → 90th range", range_value, f"{mc_result.block_months}-month blocks.", wide=True),
-        _metric_card("MC median today's money" if inflation_annual > 0 else "MC mean ending wealth", fmt_currency(stats["real_median" if inflation_annual > 0 else "mean"], currency_symbol), "Inflation-adjusted." if inflation_annual > 0 else "Average synthetic path."),
+        _metric_card("MC median CPI-adjusted", fmt_currency(stats.get("real_median", float("nan")), currency_symbol), f"Historical CPI where covered · {int(stats.get('real_count', 0)):,} paths."),
         _metric_card("MC median MWR", fmt_percent(stats["mwr_median"]), "Money-weighted annual return."),
         _metric_card(fifth_label, fifth_value, "Share of Monte Carlo paths."),
     ])
@@ -1228,7 +1307,7 @@ def build_monte_carlo_comparison_chart(historical_result: HistoricalSimulationRe
     return _chart_layout(fig, f"Historical vs Monte Carlo · {historical_result.years} years", height=570)
 
 
-def make_monte_carlo_comparison_table(historical_stats: pd.Series, mc_stats: pd.Series, currency_symbol: str, target_wealth: float, inflation_annual: float) -> pd.DataFrame:
+def make_monte_carlo_comparison_table(historical_stats: pd.Series, mc_stats: pd.Series, currency_symbol: str, target_wealth: float) -> pd.DataFrame:
     rows = [
         ("Samples", f"{int(historical_stats['count']):,} windows", f"{int(mc_stats['count']):,} paths"),
         ("P5", fmt_currency(historical_stats["p05"], currency_symbol), fmt_currency(mc_stats["p05"], currency_symbol)),
@@ -1237,7 +1316,7 @@ def make_monte_carlo_comparison_table(historical_stats: pd.Series, mc_stats: pd.
         ("Mean", fmt_currency(historical_stats["mean"], currency_symbol), fmt_currency(mc_stats["mean"], currency_symbol)),
         ("P90", fmt_currency(historical_stats["p90"], currency_symbol), fmt_currency(mc_stats["p90"], currency_symbol)),
         ("P95", fmt_currency(historical_stats["p95"], currency_symbol), fmt_currency(mc_stats["p95"], currency_symbol)),
-        ("Median today's money" if inflation_annual > 0 else "Median discounted", fmt_currency(historical_stats["real_median"], currency_symbol), fmt_currency(mc_stats["real_median"], currency_symbol)),
+        ("Median CPI-adjusted", fmt_currency(historical_stats.get("real_median", float("nan")), currency_symbol), fmt_currency(mc_stats.get("real_median", float("nan")), currency_symbol)),
         ("Median MWR", fmt_percent(historical_stats["mwr_median"]), fmt_percent(mc_stats["mwr_median"])),
         ("Below paid-in", fmt_percent(historical_stats["prob_below_contribution"]), fmt_percent(mc_stats["prob_below_contribution"])),
         ("Above target" if target_wealth > 0 else "Above target", fmt_percent(historical_stats["prob_above_target"]), fmt_percent(mc_stats["prob_above_target"])),
@@ -1279,7 +1358,7 @@ Important interpretation point: rolling windows are overlapping. They are useful
         """)
 
 
-def render_methodology_notes(contribution_timing_label: str, only_full_fx_windows: bool, inflation_annual: float, target_wealth: float) -> None:
+def render_methodology_notes(contribution_timing_label: str, only_full_fx_windows: bool, target_wealth: float) -> None:
     with st.expander("Methodology notes and trust checklist", expanded=False):
         st.markdown(f"""
 **What has been strengthened in this version**
@@ -1289,7 +1368,7 @@ def render_methodology_notes(contribution_timing_label: str, only_full_fx_window
 - Added FX full-coverage filtering: **{'enabled' if only_full_fx_windows else 'disabled'}**.
 - Added fee totals, portfolio drawdown, target-hit probability, and below-paid-in probability.
 - Added a block-bootstrap Monte Carlo module for the featured horizon.
-- Added a simple real/today's-money view using assumed inflation of **{inflation_annual * 100:.2f}% per year**.
+- Added a real/today's-money view using **historical CPI inflation from the uploaded World Bank/IMF dataset**.
 
 **How to read the results**
 - The results are historical rolling scenarios, not forecasts.
@@ -1299,24 +1378,23 @@ def render_methodology_notes(contribution_timing_label: str, only_full_fx_window
 - The Monte Carlo module resamples contiguous monthly-return blocks. It improves robustness compared with pure rolling windows, but it still depends on historical return behaviour.
 
 **Still worth adding later if you want even stronger robustness**
-- CPI datasets instead of a manual inflation assumption.
 - Separate dividend, valuation and currency attribution.
 - Regime split reports: pre-war, post-war, 1970s inflation, dot-com, GFC, COVID/2022.
 - Tax wrapper mode: ISA, SIPP, GIA.
         """)
 
 
-def make_summary_table(summary_df: pd.DataFrame, currency_symbol: str, target_wealth: float, inflation_annual: float) -> pd.DataFrame:
-    columns = ["years", "count", "total_contribution", "p05", "p10", "median", "mean", "p90", "p95", "max", "real_median", "wealth_multiple_median", "paid_in_annualised_median", "mwr_median", "prob_below_contribution", "prob_above_target", "fees_median", "max_drawdown_median", "worst_start", "worst_end", "best_start", "best_end"]
+def make_summary_table(summary_df: pd.DataFrame, currency_symbol: str, target_wealth: float) -> pd.DataFrame:
+    columns = ["years", "count", "real_count", "cpi_coverage_share", "total_contribution", "p05", "p10", "median", "mean", "p90", "p95", "max", "real_median", "wealth_multiple_median", "paid_in_annualised_median", "mwr_median", "prob_below_contribution", "prob_above_target", "fees_median", "max_drawdown_median", "worst_start", "worst_end", "best_start", "best_end"]
     table_df = summary_df[columns].copy()
     for col in ["total_contribution", "p05", "p10", "median", "mean", "p90", "p95", "max", "real_median", "fees_median"]:
         table_df[col] = table_df[col].map(lambda x: fmt_currency(x, currency_symbol))
     table_df["wealth_multiple_median"] = table_df["wealth_multiple_median"].map(fmt_multiple)
-    for col in ["paid_in_annualised_median", "mwr_median", "prob_below_contribution", "prob_above_target", "max_drawdown_median"]:
+    for col in ["paid_in_annualised_median", "mwr_median", "prob_below_contribution", "prob_above_target", "max_drawdown_median", "cpi_coverage_share"]:
         table_df[col] = table_df[col].map(fmt_percent)
     for col in ["worst_start", "worst_end", "best_start", "best_end"]:
         table_df[col] = table_df[col].map(fmt_date)
-    return table_df.rename(columns={"years": "Years", "count": "Windows", "total_contribution": "Paid in", "p05": "P5", "p10": "P10", "median": "Median", "mean": "Mean", "p90": "P90", "p95": "P95", "max": "Max", "real_median": "Real median" if inflation_annual > 0 else "Median discounted", "wealth_multiple_median": "Median multiple", "paid_in_annualised_median": "Paid-in annualised", "mwr_median": "Median MWR", "prob_below_contribution": "Below paid-in", "prob_above_target": "Above target", "fees_median": "Median fees", "max_drawdown_median": "Median max DD", "worst_start": "Worst start", "worst_end": "Worst end", "best_start": "Best start", "best_end": "Best end"})
+    return table_df.rename(columns={"years": "Years", "count": "Windows", "real_count": "CPI windows", "cpi_coverage_share": "CPI coverage", "total_contribution": "Paid in", "p05": "P5", "p10": "P10", "median": "Median", "mean": "Mean", "p90": "P90", "p95": "P95", "max": "Max", "real_median": "CPI-adjusted median", "wealth_multiple_median": "Median multiple", "paid_in_annualised_median": "Paid-in annualised", "mwr_median": "Median MWR", "prob_below_contribution": "Below paid-in", "prob_above_target": "Above target", "fees_median": "Median fees", "max_drawdown_median": "Median max DD", "worst_start": "Worst start", "worst_end": "Worst end", "best_start": "Best start", "best_end": "Best end"})
 
 
 def main() -> None:
@@ -1329,7 +1407,7 @@ def main() -> None:
                 <p>Explore long-term investing outcomes with rolling historical windows, local-currency conversion, fees, drawdown, inflation and target-hit diagnostics.</p>
                 <div class="hero-badges">
                     <span class="badge">Rolling history</span>
-                    <span class="badge">GBP / USD / EUR</span>
+                    <span class="badge">GBP / USD</span>
                     <span class="badge">Money-weighted return</span>
                     <span class="badge">Fees + drawdown</span>
                     <span class="badge">Monte Carlo</span>
@@ -1353,12 +1431,13 @@ def main() -> None:
         help="Example: choosing Stagflation starts the rolling study from 1973 and uses all monthly data from 1973 through the latest available month.",
     )
     regime_meta = get_regime_metadata(selected_regime_label, latest_year)
-    output_currency = top_b.selectbox("Output currency", ["GBP", "USD", "EUR"], index=0)
+    output_currency = top_b.selectbox("Output currency", ["GBP", "USD"], index=0)
     currency_symbol = CURRENCY_CONFIG[output_currency]["symbol"]
     currency_label = CURRENCY_CONFIG[output_currency]["label"]
 
     base_returns_df = filter_returns_by_regime_start(raw_base_returns_df, selected_regime_label)
     returns_df, fx_diag = apply_currency_adjustment(base_returns_df, output_currency)
+    returns_df, cpi_diag = add_historical_cpi(returns_df, output_currency)
 
     with top_c:
         st.markdown(
@@ -1371,7 +1450,7 @@ def main() -> None:
             """,
             unsafe_allow_html=True,
         )
-        only_full_fx_windows = st.checkbox("Use only full-FX-covered windows", value=(output_currency != "USD"), disabled=(output_currency == "USD"), help="Recommended for GBP/EUR. It avoids mixing true local-currency periods with older periods where FX data is missing.")
+        only_full_fx_windows = st.checkbox("Use only full-FX-covered windows", value=(output_currency != "USD"), disabled=(output_currency == "USD"), help="Recommended for GBP. It avoids mixing true local-currency periods with older periods where FX data is missing.")
 
     max_months_available = max_consecutive_true(returns_df["fx_covered"]) if only_full_fx_windows else len(returns_df)
     max_possible_years = max(1, max_months_available // 12)
@@ -1398,7 +1477,7 @@ def main() -> None:
         i, j, k, l = st.columns(4)
         contribution_timing_label = i.selectbox("Contribution timing", list(CONTRIBUTION_TIMING_OPTIONS.keys()), index=1)
         contribution_timing = CONTRIBUTION_TIMING_OPTIONS[contribution_timing_label]
-        inflation_annual = j.number_input("Inflation for today's-money view (% / year)", min_value=0.0, value=2.5, step=0.25) / 100.0
+        j.markdown(f"**Real-value method**  \nHistorical {cpi_diag['country_code']} CPI  \n{cpi_diag['covered_months']:,}/{cpi_diag['total_months']:,} months covered")
         target_wealth = k.number_input(f"Target wealth ({currency_symbol}, optional)", min_value=0.0, value=0.0, step=10000.0)
         featured_horizon = l.slider("Featured horizon", min_value=int(year_range[0]), max_value=int(year_range[1]), value=int(year_range[1]))
 
@@ -1411,7 +1490,7 @@ def main() -> None:
     st.markdown('</div>', unsafe_allow_html=True)
 
     try:
-        horizon_results = [simulate_rolling_horizon(returns_df, yr, initial_investment, monthly_contribution, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap, contribution_timing, only_full_fx_windows, target_wealth, inflation_annual) for yr in range(int(year_range[0]), int(year_range[1]) + 1)]
+        horizon_results = [simulate_rolling_horizon(returns_df, yr, initial_investment, monthly_contribution, fund_fee_annual, platform_fee_annual, platform_fee_monthly_min, platform_fee_annual_cap, contribution_timing, only_full_fx_windows, target_wealth) for yr in range(int(year_range[0]), int(year_range[1]) + 1)]
     except ValueError as exc:
         st.error(str(exc))
         st.stop()
@@ -1420,7 +1499,7 @@ def main() -> None:
     primary = next(r for r in horizon_results if r.years == int(featured_horizon))
 
     st.markdown('<div class="section-title"><h2>Dashboard overview</h2></div><div class="section-subtitle">Large figures are now rendered in custom responsive cards, so values should not be clipped.</div>', unsafe_allow_html=True)
-    render_metric_cards(primary.stats, currency_symbol, target_wealth, inflation_annual)
+    render_metric_cards(primary.stats, currency_symbol, target_wealth)
 
     left, right = st.columns([1.0, 1.22])
     with left:
@@ -1429,7 +1508,7 @@ def main() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
     with right:
         st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
-        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol, inflation_annual), width="stretch", theme=None)
+        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol), width="stretch", theme=None)
         st.markdown('</div>', unsafe_allow_html=True)
 
     if enable_monte_carlo:
@@ -1447,7 +1526,6 @@ def main() -> None:
                 contribution_timing,
                 only_full_fx_windows,
                 target_wealth,
-                inflation_annual,
                 int(mc_simulations),
                 int(mc_block_months),
                 int(mc_seed),
@@ -1455,18 +1533,19 @@ def main() -> None:
         except ValueError as exc:
             st.warning(f"Monte Carlo could not run: {exc}")
         else:
-            render_monte_carlo_metric_cards(mc_result, currency_symbol, target_wealth, inflation_annual)
+            render_monte_carlo_metric_cards(mc_result, currency_symbol, target_wealth)
             st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
             st.plotly_chart(build_monte_carlo_comparison_chart(primary, mc_result, currency_symbol, target_wealth), width="stretch", theme=None)
             st.markdown('</div>', unsafe_allow_html=True)
             st.markdown('<div class="section-card"><div class="section-title"><h2>Historical vs Monte Carlo comparison</h2></div><div class="section-subtitle">Monte Carlo results are not exact future probabilities. They are stress-tested synthetic paths drawn from the selected historical return sample.</div>', unsafe_allow_html=True)
-            mc_compare_df = make_monte_carlo_comparison_table(primary.stats, mc_result.stats, currency_symbol, target_wealth, inflation_annual)
+            mc_compare_df = make_monte_carlo_comparison_table(primary.stats, mc_result.stats, currency_symbol, target_wealth)
             st.dataframe(mc_compare_df, width="stretch", hide_index=True, height=485)
             mc_export = pd.DataFrame({
                 "simulation": np.arange(1, len(mc_result.final_values) + 1),
                 "final_value": mc_result.final_values,
                 "total_fees": mc_result.total_fees,
                 "max_drawdown": mc_result.max_drawdowns,
+                "real_final_value_cpi_adjusted": mc_result.real_final_values,
             })
             st.download_button(
                 "Download Monte Carlo paths CSV",
@@ -1477,12 +1556,13 @@ def main() -> None:
             st.markdown('</div>', unsafe_allow_html=True)
 
     render_fx_diagnostics(fx_diag, only_full_fx_windows)
+    render_cpi_diagnostics(cpi_diag)
     render_dataset_diagnostics(base_returns_df, returns_df, selected_dataset, output_currency)
     st.caption(f"Selected start period: {regime_meta['display']}. This option controls the sample start only; all data from that year through the latest month is included.")
-    render_methodology_notes(contribution_timing_label, only_full_fx_windows, inflation_annual, target_wealth)
+    render_methodology_notes(contribution_timing_label, only_full_fx_windows, target_wealth)
 
     st.markdown('<div class="section-card"><div class="section-title"><h2>Summary table</h2></div><div class="section-subtitle">Scrollable detailed statistics for every horizon in the selected range.</div>', unsafe_allow_html=True)
-    table_df = make_summary_table(summary_df, currency_symbol, target_wealth, inflation_annual)
+    table_df = make_summary_table(summary_df, currency_symbol, target_wealth)
     st.dataframe(table_df, width="stretch", hide_index=True, height=430)
     st.markdown('</div>', unsafe_allow_html=True)
 
