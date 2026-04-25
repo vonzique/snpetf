@@ -238,54 +238,79 @@ def max_consecutive_true(values: pd.Series | np.ndarray) -> int:
 
 
 def cashflow_irr_from_final_value(final_value: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str) -> float:
+    """Estimate annual money-weighted return from regular monthly cashflows.
+
+    The previous implementation solved directly for a monthly rate and tested a
+    lower bound extremely close to -100% per month. For long horizons this can
+    make (1 + r) ** month underflow to zero, causing a ZeroDivisionError.
+    This version solves for an annual rate, converts it to the equivalent
+    monthly discount factor, and evaluates NPV using Horner recursion rather
+    than explicit powers.
+    """
     months = int(years * 12)
-    if months <= 0 or final_value <= 0:
+    if months <= 0 or not np.isfinite(final_value) or final_value <= 0:
         return float("nan")
+
+    initial_investment = float(initial_investment)
+    monthly_contribution = float(monthly_contribution)
 
     if contribution_timing == "start":
         flows = [-(initial_investment + monthly_contribution)]
         flows.extend([-monthly_contribution] * max(0, months - 1))
-        flows.append(final_value)
+        flows.append(float(final_value))
     else:
         flows = [-initial_investment]
         flows.extend([-monthly_contribution] * max(0, months - 1))
-        flows.append(final_value - monthly_contribution)
+        flows.append(float(final_value) - monthly_contribution)
 
     if not any(f < 0 for f in flows) or not any(f > 0 for f in flows):
         return float("nan")
 
-    def npv(monthly_rate: float) -> float:
-        denom = 1.0 + monthly_rate
-        if denom <= 0:
+    def npv_from_annual_rate(annual_rate: float) -> float:
+        if annual_rate <= -1.0:
             return float("inf")
-        return float(sum(cf / (denom ** i) for i, cf in enumerate(flows)))
+        monthly_discount = (1.0 + annual_rate) ** (1.0 / 12.0)
+        if not np.isfinite(monthly_discount) or monthly_discount <= 0.0:
+            return float("nan")
 
-    low, high = -0.9999, 0.25
-    npv_low, npv_high = npv(low), npv(high)
-    for _ in range(20):
-        if npv_low * npv_high <= 0:
+        # Horner-style evaluation of sum(cf_i / monthly_discount**i).
+        # This avoids the long-horizon underflow/overflow risk from explicit powers.
+        acc = 0.0
+        for cf in reversed(flows):
+            acc = cf + acc / monthly_discount
+            if not np.isfinite(acc):
+                return float("inf") if acc > 0 else float("-inf")
+        return float(acc)
+
+    low, high = -0.999, 1.0  # annual-rate bounds: -99.9% to +100%
+    npv_low, npv_high = npv_from_annual_rate(low), npv_from_annual_rate(high)
+
+    for _ in range(30):
+        if np.isfinite(npv_low) and np.isfinite(npv_high) and npv_low * npv_high <= 0:
             break
         high *= 2.0
-        npv_high = npv(high)
+        if high > 1000.0:
+            return float("nan")
+        npv_high = npv_from_annual_rate(high)
     else:
         return float("nan")
 
-    monthly_irr = float("nan")
     for _ in range(80):
         mid = (low + high) / 2.0
-        npv_mid = npv(mid)
+        npv_mid = npv_from_annual_rate(mid)
+        if not np.isfinite(npv_mid):
+            low = mid
+            continue
         if abs(npv_mid) < 1e-7:
-            monthly_irr = mid
-            break
+            return float(mid)
         if npv_low * npv_mid <= 0:
             high = mid
             npv_high = npv_mid
         else:
             low = mid
             npv_low = npv_mid
-    if pd.isna(monthly_irr):
-        monthly_irr = (low + high) / 2.0
-    return float((1.0 + monthly_irr) ** 12.0 - 1.0)
+
+    return float((low + high) / 2.0)
 
 
 def summarise_distribution(final_values: pd.Series, start_dates: pd.Series, end_dates: pd.Series, total_contribution: float, years: int, initial_investment: float, monthly_contribution: float, contribution_timing: str, total_fees: pd.Series, max_drawdowns: pd.Series, target_wealth: float, inflation_annual: float) -> pd.Series:
