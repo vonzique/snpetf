@@ -50,24 +50,33 @@ def inject_css() -> None:
     st.markdown("""
     <style>
         :root {
-            --bg: #eef3f8;
-            --panel: rgba(255, 255, 255, 0.92);
-            --panel-strong: #ffffff;
-            --text: #111827;
-            --muted: #64748b;
-            --line: rgba(148, 163, 184, 0.28);
-            --accent: #2563eb;
-            --accent-2: #14b8a6;
-            --shadow: 0 22px 55px rgba(15, 23, 42, 0.10);
+            --bg: #050816;
+            --bg-2: #0b1220;
+            --panel: rgba(15, 23, 42, 0.86);
+            --panel-strong: rgba(17, 24, 39, 0.96);
+            --panel-soft: rgba(30, 41, 59, 0.72);
+            --text: #e5e7eb;
+            --text-strong: #f8fafc;
+            --muted: #94a3b8;
+            --muted-2: #64748b;
+            --line: rgba(148, 163, 184, 0.20);
+            --line-strong: rgba(148, 163, 184, 0.34);
+            --accent: #38bdf8;
+            --accent-2: #34d399;
+            --accent-3: #a78bfa;
+            --warning: #fbbf24;
+            --danger: #fb7185;
+            --shadow: 0 28px 80px rgba(0, 0, 0, 0.42);
             --radius: 24px;
         }
 
         html, body, [data-testid="stAppViewContainer"] {
             background:
-                radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 28rem),
-                radial-gradient(circle at top right, rgba(20, 184, 166, 0.16), transparent 26rem),
-                linear-gradient(180deg, #f8fafc 0%, #eef3f8 42%, #f8fafc 100%);
-            color: var(--text);
+                radial-gradient(circle at 8% 0%, rgba(56, 189, 248, 0.18), transparent 30rem),
+                radial-gradient(circle at 92% 10%, rgba(167, 139, 250, 0.16), transparent 28rem),
+                radial-gradient(circle at 50% 100%, rgba(52, 211, 153, 0.10), transparent 32rem),
+                linear-gradient(180deg, #020617 0%, #08111f 42%, #020617 100%) !important;
+            color: var(--text) !important;
         }
 
         header[data-testid="stHeader"] {display: none;}
@@ -76,50 +85,67 @@ def inject_css() -> None:
         footer {visibility: hidden;}
 
         .block-container {
-            padding-top: 1.2rem;
-            padding-bottom: 2.2rem;
+            padding-top: 1.15rem;
+            padding-bottom: 2.35rem;
             max-width: 1500px;
         }
 
         h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
-            letter-spacing: -0.03em;
+            letter-spacing: -0.035em;
+            color: var(--text-strong) !important;
+        }
+
+        p, li, .stMarkdown, .stCaption, label, div[data-testid="stMarkdownContainer"] {
+            color: var(--text) !important;
         }
 
         .hero {
             position: relative;
             overflow: hidden;
-            padding: 1.6rem 1.75rem;
-            border-radius: 30px;
+            padding: 1.75rem 1.9rem;
+            border-radius: 32px;
             background:
-                linear-gradient(135deg, rgba(15,23,42,.98) 0%, rgba(30,41,59,.97) 48%, rgba(37,99,235,.92) 100%);
-            color: white;
-            border: 1px solid rgba(255,255,255,.14);
-            box-shadow: 0 30px 80px rgba(15,23,42,.28);
+                linear-gradient(135deg, rgba(2,6,23,.98) 0%, rgba(15,23,42,.97) 42%, rgba(30,41,59,.94) 100%);
+            color: var(--text-strong);
+            border: 1px solid rgba(125, 211, 252, .20);
+            box-shadow: 0 30px 95px rgba(0, 0, 0, .52), inset 0 1px 0 rgba(255,255,255,.06);
             margin-bottom: 1.15rem;
+        }
+        .hero:before {
+            content: "";
+            position: absolute;
+            inset: -2px;
+            background:
+                radial-gradient(circle at 84% 12%, rgba(56,189,248,.28), transparent 18rem),
+                radial-gradient(circle at 12% 86%, rgba(52,211,153,.18), transparent 18rem);
+            pointer-events: none;
         }
         .hero:after {
             content: "";
             position: absolute;
-            right: -90px;
-            top: -90px;
-            width: 300px;
-            height: 300px;
+            right: -120px;
+            top: -120px;
+            width: 340px;
+            height: 340px;
             border-radius: 999px;
-            background: rgba(255,255,255,.12);
-            filter: blur(1px);
+            background: linear-gradient(135deg, rgba(56,189,248,.23), rgba(167,139,250,.18));
+            filter: blur(2px);
+            pointer-events: none;
         }
         .hero h1 {
             margin: 0;
-            font-size: clamp(2rem, 3.8vw, 3.65rem);
-            line-height: 0.98;
-            font-weight: 850;
+            font-size: clamp(2.15rem, 4vw, 3.85rem);
+            line-height: 0.96;
+            font-weight: 900;
+            color: #f8fafc !important;
+            text-shadow: 0 12px 45px rgba(0,0,0,.45);
         }
         .hero p {
-            margin: .8rem 0 0 0;
-            max-width: 880px;
-            color: #dbeafe;
-            font-size: 1.03rem;
-            line-height: 1.55;
+            margin: .85rem 0 0 0;
+            max-width: 920px;
+            color: #cbd5e1 !important;
+            font-size: 1.04rem;
+            line-height: 1.58;
         }
         .hero-row {
             display: flex;
@@ -134,26 +160,28 @@ def inject_css() -> None:
             display: flex;
             gap: .55rem;
             flex-wrap: wrap;
-            margin-top: 1rem;
+            margin-top: 1.05rem;
         }
         .badge {
-            padding: .42rem .7rem;
+            padding: .43rem .72rem;
             border-radius: 999px;
-            background: rgba(255,255,255,.13);
-            border: 1px solid rgba(255,255,255,.16);
-            color: #eff6ff;
+            background: rgba(15, 23, 42, .55);
+            border: 1px solid rgba(125, 211, 252, .20);
+            color: #e0f2fe !important;
             font-size: .82rem;
-            font-weight: 650;
-            backdrop-filter: blur(8px);
+            font-weight: 750;
+            backdrop-filter: blur(12px);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.05);
         }
 
         .section-card {
-            background: var(--panel);
+            background: linear-gradient(180deg, rgba(15,23,42,.90), rgba(15,23,42,.76));
             border: 1px solid var(--line);
             border-radius: var(--radius);
-            padding: 1.1rem 1.15rem 1rem 1.15rem;
-            box-shadow: var(--shadow);
-            margin: .9rem 0 1.05rem 0;
+            padding: 1.15rem 1.2rem 1rem 1.2rem;
+            box-shadow: var(--shadow), inset 0 1px 0 rgba(255,255,255,.035);
+            margin: .95rem 0 1.1rem 0;
+            backdrop-filter: blur(14px);
         }
         .section-title {
             display: flex;
@@ -164,11 +192,11 @@ def inject_css() -> None:
         }
         .section-title h2 {
             margin: 0;
-            font-size: 1.25rem;
-            color: #0f172a;
+            font-size: 1.28rem;
+            color: #f8fafc !important;
         }
         .section-subtitle {
-            color: var(--muted);
+            color: var(--muted) !important;
             margin: -.25rem 0 .9rem 0;
             font-size: .94rem;
         }
@@ -177,36 +205,50 @@ def inject_css() -> None:
         div[data-testid="stNumberInput"] label,
         div[data-testid="stSlider"] label,
         div[data-testid="stCheckbox"] label {
-            color: #334155 !important;
-            font-weight: 650 !important;
+            color: #cbd5e1 !important;
+            font-weight: 700 !important;
         }
         div[data-baseweb="select"] > div,
         div[data-testid="stNumberInput"] input {
             border-radius: 15px !important;
-            border-color: rgba(148, 163, 184, 0.45) !important;
-            background: rgba(255,255,255,.92) !important;
+            border-color: rgba(125, 211, 252, 0.22) !important;
+            background: rgba(2, 6, 23, .62) !important;
+            color: #f8fafc !important;
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.04) !important;
         }
+        div[data-testid="stNumberInput"] input::placeholder {color: #94a3b8 !important;}
+        div[data-baseweb="select"] span {color: #f8fafc !important;}
         div[data-testid="stExpander"] {
             border-radius: 20px !important;
             border: 1px solid var(--line) !important;
-            background: rgba(255,255,255,.75) !important;
+            background: rgba(15, 23, 42, .66) !important;
+            color: var(--text) !important;
+        }
+        div[data-testid="stExpander"] summary,
+        div[data-testid="stExpander"] p,
+        div[data-testid="stExpander"] li {
+            color: #dbeafe !important;
+        }
+        div[data-testid="stSlider"] [data-baseweb="slider"] div {
+            color: #e5e7eb !important;
         }
 
         .kpi-grid {
             display: grid;
             grid-template-columns: repeat(5, minmax(190px, 1fr));
-            gap: .9rem;
-            margin: 1rem 0 1.05rem 0;
+            gap: .95rem;
+            margin: 1.05rem 0 1.1rem 0;
         }
         .kpi-card {
             position: relative;
             overflow: hidden;
-            min-height: 142px;
-            padding: 1rem 1rem .95rem 1rem;
+            min-height: 150px;
+            padding: 1.05rem 1.05rem 1rem 1.05rem;
             border-radius: 24px;
-            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
-            border: 1px solid rgba(148,163,184,.30);
-            box-shadow: 0 18px 40px rgba(15,23,42,.08);
+            background:
+                linear-gradient(180deg, rgba(30,41,59,.86), rgba(15,23,42,.90));
+            border: 1px solid rgba(125,211,252,.18);
+            box-shadow: 0 20px 54px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.04);
         }
         .kpi-card:before {
             content: "";
@@ -214,87 +256,114 @@ def inject_css() -> None:
             inset: 0 auto 0 0;
             width: 5px;
             background: linear-gradient(180deg, var(--accent), var(--accent-2));
+            box-shadow: 0 0 24px rgba(56,189,248,.65);
+        }
+        .kpi-card:after {
+            content: "";
+            position: absolute;
+            top: -80px;
+            right: -80px;
+            width: 150px;
+            height: 150px;
+            border-radius: 999px;
+            background: rgba(56,189,248,.09);
+            pointer-events: none;
         }
         .kpi-label {
-            color: #64748b;
+            color: #93c5fd !important;
             font-size: .80rem;
-            font-weight: 800;
-            letter-spacing: .02em;
+            font-weight: 850;
+            letter-spacing: .025em;
             text-transform: uppercase;
             margin-left: .15rem;
+            position: relative;
+            z-index: 1;
         }
         .kpi-value {
-            color: #0f172a;
-            font-weight: 850;
+            color: #f8fafc !important;
+            font-weight: 900;
             line-height: 1.08;
             letter-spacing: -0.045em;
-            font-size: clamp(1.35rem, 1.75vw, 2.15rem);
-            margin-top: .55rem;
+            font-size: clamp(1.35rem, 1.75vw, 2.18rem);
+            margin-top: .58rem;
             overflow-wrap: anywhere;
             word-break: normal;
             white-space: normal;
+            position: relative;
+            z-index: 1;
         }
         .kpi-note {
-            color: #64748b;
+            color: #94a3b8 !important;
             font-size: .82rem;
-            line-height: 1.35;
-            margin-top: .55rem;
+            line-height: 1.38;
+            margin-top: .58rem;
+            position: relative;
+            z-index: 1;
         }
         .kpi-wide .kpi-value {
-            font-size: clamp(1.10rem, 1.35vw, 1.55rem);
+            font-size: clamp(1.08rem, 1.35vw, 1.58rem);
             letter-spacing: -0.035em;
         }
 
         .mini-grid {
             display: grid;
             grid-template-columns: repeat(4, minmax(180px, 1fr));
-            gap: .85rem;
-            margin: .15rem 0 1rem 0;
+            gap: .88rem;
+            margin: .18rem 0 1.05rem 0;
         }
         .mini-card {
-            padding: .9rem .95rem;
+            padding: .92rem .98rem;
             border-radius: 20px;
-            background: rgba(255,255,255,.82);
-            border: 1px solid rgba(148,163,184,.25);
+            background: rgba(15,23,42,.72);
+            border: 1px solid rgba(148,163,184,.18);
+            box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
         }
         .mini-label {
-            color: #64748b;
+            color: #94a3b8 !important;
             font-size: .76rem;
-            font-weight: 750;
+            font-weight: 800;
             text-transform: uppercase;
-            letter-spacing: .02em;
+            letter-spacing: .025em;
         }
         .mini-value {
-            margin-top: .35rem;
-            color: #0f172a;
-            font-weight: 800;
-            font-size: 1.05rem;
+            margin-top: .36rem;
+            color: #e0f2fe !important;
+            font-weight: 850;
+            font-size: 1.06rem;
             overflow-wrap: anywhere;
         }
 
         .chart-shell {
-            background: rgba(255,255,255,.86);
-            border: 1px solid rgba(148,163,184,.25);
+            background: linear-gradient(180deg, rgba(15,23,42,.88), rgba(2,6,23,.62));
+            border: 1px solid rgba(125,211,252,.16);
             border-radius: 24px;
-            padding: .7rem .7rem .25rem .7rem;
-            box-shadow: 0 16px 40px rgba(15,23,42,.07);
+            padding: .72rem .72rem .28rem .72rem;
+            box-shadow: 0 22px 64px rgba(0,0,0,.34), inset 0 1px 0 rgba(255,255,255,.035);
         }
 
         div[data-testid="stDataFrame"] {
             border-radius: 22px;
             overflow: hidden;
-            box-shadow: 0 18px 42px rgba(15,23,42,.07);
-            border: 1px solid rgba(148,163,184,.25);
+            box-shadow: 0 20px 58px rgba(0,0,0,.34);
+            border: 1px solid rgba(125,211,252,.16);
+            background: rgba(15,23,42,.70) !important;
         }
-        .stDownloadButton button {
+        .stDownloadButton button,
+        .stButton button {
             border-radius: 999px !important;
-            padding: .65rem 1.05rem !important;
-            border: 1px solid rgba(37,99,235,.22) !important;
-            background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
+            padding: .66rem 1.08rem !important;
+            border: 1px solid rgba(125,211,252,.28) !important;
+            background: linear-gradient(135deg, #0ea5e9, #10b981) !important;
             color: white !important;
-            font-weight: 800 !important;
-            box-shadow: 0 14px 34px rgba(37,99,235,.22);
+            font-weight: 850 !important;
+            box-shadow: 0 16px 38px rgba(14,165,233,.22);
         }
+        .stAlert {
+            background: rgba(15,23,42,.76) !important;
+            border: 1px solid rgba(251,191,36,.28) !important;
+            color: #fde68a !important;
+        }
+        hr {border-color: rgba(148,163,184,.18) !important;}
 
         @media (max-width: 1250px) {
             .kpi-grid {grid-template-columns: repeat(3, minmax(190px, 1fr));}
@@ -302,13 +371,12 @@ def inject_css() -> None:
         }
         @media (max-width: 760px) {
             .block-container {padding-left: .8rem; padding-right: .8rem;}
-            .hero {padding: 1.2rem; border-radius: 24px;}
+            .hero {padding: 1.25rem; border-radius: 24px;}
             .kpi-grid {grid-template-columns: 1fr;}
             .mini-grid {grid-template-columns: 1fr;}
         }
     </style>
     """, unsafe_allow_html=True)
-
 
 
 
@@ -738,16 +806,16 @@ def render_metric_cards(stats: pd.Series, currency_symbol: str, target_wealth: f
 
 def _chart_layout(fig: go.Figure, title: str, height: int = 520) -> go.Figure:
     fig.update_layout(
-        title=dict(text=title, x=0.02, xanchor="left", font=dict(size=20, color="#0f172a")),
-        font=dict(family="Inter, Segoe UI, Roboto, Arial, sans-serif", color="#334155"),
+        title=dict(text=title, x=0.02, xanchor="left", font=dict(size=21, color="#f8fafc")),
+        font=dict(family="Inter, Segoe UI, Roboto, Arial, sans-serif", color="#cbd5e1"),
         height=height,
-        hoverlabel=dict(bgcolor="white", font_size=13, font_family="Inter, Segoe UI, Roboto, Arial, sans-serif"),
+        hoverlabel=dict(bgcolor="#020617", bordercolor="rgba(125,211,252,.28)", font_size=13, font_color="#e5e7eb", font_family="Inter, Segoe UI, Roboto, Arial, sans-serif"),
         paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(255,255,255,0)",
-        margin=dict(l=64, r=28, t=64, b=64),
+        plot_bgcolor="rgba(2,6,23,0.18)",
+        margin=dict(l=64, r=28, t=68, b=64),
     )
-    fig.update_xaxes(showgrid=True, gridcolor="rgba(148,163,184,.18)", zeroline=False, automargin=True, title_font=dict(size=13), tickfont=dict(size=12))
-    fig.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,.18)", zeroline=False, automargin=True, title_font=dict(size=13), tickfont=dict(size=12))
+    fig.update_xaxes(showgrid=True, gridcolor="rgba(148,163,184,.15)", zeroline=False, automargin=True, title_font=dict(size=13, color="#cbd5e1"), tickfont=dict(size=12, color="#94a3b8"), linecolor="rgba(148,163,184,.25)")
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,.15)", zeroline=False, automargin=True, title_font=dict(size=13, color="#cbd5e1"), tickfont=dict(size=12, color="#94a3b8"), linecolor="rgba(148,163,184,.25)")
     return fig
 
 
@@ -755,13 +823,15 @@ def build_distribution_chart(result: HistoricalSimulationResult, currency_symbol
     df = pd.DataFrame({"Final wealth": result.final_values})
     fig = px.histogram(df, x="Final wealth", nbins=40, opacity=0.86)
     fig.update_traces(
+        marker_color="#38bdf8",
+        marker_line_color="rgba(255,255,255,.10)",
         marker_line_width=0,
         hovertemplate=f"Final wealth={currency_symbol}%{{x:,.0f}}<br>Windows=%{{y}}<extra></extra>",
     )
-    fig.add_vline(x=float(result.stats["median"]), line_dash="dash", line_width=2, annotation_text="Median", annotation_position="top")
-    fig.add_vline(x=float(result.stats["mean"]), line_dash="dot", line_width=2, annotation_text="Mean", annotation_position="top")
+    fig.add_vline(x=float(result.stats["median"]), line_dash="dash", line_width=2, line_color="#f8fafc", annotation_text="Median", annotation_position="top", annotation_font_color="#f8fafc")
+    fig.add_vline(x=float(result.stats["mean"]), line_dash="dot", line_width=2, line_color="#34d399", annotation_text="Mean", annotation_position="top", annotation_font_color="#bbf7d0")
     if target_wealth > 0:
-        fig.add_vline(x=float(target_wealth), line_dash="solid", line_width=2, annotation_text="Target", annotation_position="top right")
+        fig.add_vline(x=float(target_wealth), line_dash="solid", line_width=2, line_color="#fbbf24", annotation_text="Target", annotation_position="top right", annotation_font_color="#fde68a")
     fig.update_xaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
     fig.update_yaxes(title_text="Historical rolling windows")
     return _chart_layout(fig, f"Ending wealth distribution · {result.years} years", height=525)
@@ -775,31 +845,31 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str, inflatio
     ))
     fig.add_trace(go.Scatter(
         x=summary_df["years"], y=summary_df["p90"], mode="lines",
-        line=dict(width=0), fill="tonexty", fillcolor="rgba(37,99,235,0.14)",
+        line=dict(width=0), fill="tonexty", fillcolor="rgba(56,189,248,0.16)",
         name="10th-90th percentile",
         hovertemplate=f"Years=%{{x}}<br>90th percentile={currency_symbol}%{{y:,.0f}}<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         x=summary_df["years"], y=summary_df["median"], mode="lines",
-        name="Median nominal", line=dict(shape="spline", smoothing=1.0, width=4, color="#2563eb"),
+        name="Median nominal", line=dict(shape="spline", smoothing=1.0, width=4, color="#38bdf8"),
         hovertemplate=f"Years=%{{x}}<br>Median={currency_symbol}%{{y:,.0f}}<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         x=summary_df["years"], y=summary_df["mean"], mode="lines",
-        name="Mean nominal", line=dict(shape="spline", smoothing=1.0, width=3, dash="dot", color="#14b8a6"),
+        name="Mean nominal", line=dict(shape="spline", smoothing=1.0, width=3, dash="dot", color="#34d399"),
         hovertemplate=f"Years=%{{x}}<br>Mean={currency_symbol}%{{y:,.0f}}<extra></extra>",
     ))
     if inflation_annual > 0:
         fig.add_trace(go.Scatter(
             x=summary_df["years"], y=summary_df["real_median"], mode="lines",
-            name="Median today's money", line=dict(shape="spline", smoothing=1.0, width=3, dash="dash", color="#f97316"),
+            name="Median today's money", line=dict(shape="spline", smoothing=1.0, width=3, dash="dash", color="#fbbf24"),
             hovertemplate=f"Years=%{{x}}<br>Real median={currency_symbol}%{{y:,.0f}}<extra></extra>",
         ))
     fig.update_xaxes(title_text="Investment horizon (years)")
     fig.update_yaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
     fig.update_layout(
         hovermode="x unified",
-        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None),
+        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
         margin=dict(l=72, r=28, t=64, b=98),
     )
     return _chart_layout(fig, "Ending wealth across horizons", height=610)
