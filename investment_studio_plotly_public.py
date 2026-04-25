@@ -2324,7 +2324,6 @@ def main() -> None:
                 contribution_growth_mode,
                 contribution_growth_annual,
                 extra_tracking_drag_annual,
-                cape_matching_strength,
             )
             for yr in range(int(year_range[0]), int(year_range[1]) + 1)
         ]
