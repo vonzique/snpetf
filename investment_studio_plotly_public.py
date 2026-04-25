@@ -49,17 +49,267 @@ CONTRIBUTION_TIMING_OPTIONS = {
 def inject_css() -> None:
     st.markdown("""
     <style>
+        :root {
+            --bg: #eef3f8;
+            --panel: rgba(255, 255, 255, 0.92);
+            --panel-strong: #ffffff;
+            --text: #111827;
+            --muted: #64748b;
+            --line: rgba(148, 163, 184, 0.28);
+            --accent: #2563eb;
+            --accent-2: #14b8a6;
+            --shadow: 0 22px 55px rgba(15, 23, 42, 0.10);
+            --radius: 24px;
+        }
+
+        html, body, [data-testid="stAppViewContainer"] {
+            background:
+                radial-gradient(circle at top left, rgba(37, 99, 235, 0.18), transparent 28rem),
+                radial-gradient(circle at top right, rgba(20, 184, 166, 0.16), transparent 26rem),
+                linear-gradient(180deg, #f8fafc 0%, #eef3f8 42%, #f8fafc 100%);
+            color: var(--text);
+        }
+
         header[data-testid="stHeader"] {display: none;}
         div[data-testid="stToolbar"] {display: none;}
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
-        .block-container {padding-top: 1.2rem; padding-bottom: 1.6rem; max-width: 1320px;}
-        .hero {padding: 1.35rem 1.5rem; border-radius: 24px; background: linear-gradient(135deg, #0f172a 0%, #111827 45%, #1e293b 100%); color: white; border: 1px solid rgba(148,163,184,.15); box-shadow: 0 24px 60px rgba(15,23,42,.22); margin-bottom: 1rem;}
-        .hero h1 {margin: 0; font-size: 2rem; font-weight: 700;}
-        .hero p {margin: .35rem 0 0 0; color: #cbd5e1;}
-        .section-card {background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.95)); border: 1px solid rgba(148,163,184,.22); border-radius: 22px; padding: 1rem 1rem .8rem 1rem; box-shadow: 0 14px 34px rgba(15,23,42,.06);}
+
+        .block-container {
+            padding-top: 1.2rem;
+            padding-bottom: 2.2rem;
+            max-width: 1500px;
+        }
+
+        h1, h2, h3, .stMarkdown h1, .stMarkdown h2, .stMarkdown h3 {
+            letter-spacing: -0.03em;
+        }
+
+        .hero {
+            position: relative;
+            overflow: hidden;
+            padding: 1.6rem 1.75rem;
+            border-radius: 30px;
+            background:
+                linear-gradient(135deg, rgba(15,23,42,.98) 0%, rgba(30,41,59,.97) 48%, rgba(37,99,235,.92) 100%);
+            color: white;
+            border: 1px solid rgba(255,255,255,.14);
+            box-shadow: 0 30px 80px rgba(15,23,42,.28);
+            margin-bottom: 1.15rem;
+        }
+        .hero:after {
+            content: "";
+            position: absolute;
+            right: -90px;
+            top: -90px;
+            width: 300px;
+            height: 300px;
+            border-radius: 999px;
+            background: rgba(255,255,255,.12);
+            filter: blur(1px);
+        }
+        .hero h1 {
+            margin: 0;
+            font-size: clamp(2rem, 3.8vw, 3.65rem);
+            line-height: 0.98;
+            font-weight: 850;
+        }
+        .hero p {
+            margin: .8rem 0 0 0;
+            max-width: 880px;
+            color: #dbeafe;
+            font-size: 1.03rem;
+            line-height: 1.55;
+        }
+        .hero-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            flex-wrap: wrap;
+            position: relative;
+            z-index: 1;
+        }
+        .hero-badges {
+            display: flex;
+            gap: .55rem;
+            flex-wrap: wrap;
+            margin-top: 1rem;
+        }
+        .badge {
+            padding: .42rem .7rem;
+            border-radius: 999px;
+            background: rgba(255,255,255,.13);
+            border: 1px solid rgba(255,255,255,.16);
+            color: #eff6ff;
+            font-size: .82rem;
+            font-weight: 650;
+            backdrop-filter: blur(8px);
+        }
+
+        .section-card {
+            background: var(--panel);
+            border: 1px solid var(--line);
+            border-radius: var(--radius);
+            padding: 1.1rem 1.15rem 1rem 1.15rem;
+            box-shadow: var(--shadow);
+            margin: .9rem 0 1.05rem 0;
+        }
+        .section-title {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+            margin-bottom: .65rem;
+        }
+        .section-title h2 {
+            margin: 0;
+            font-size: 1.25rem;
+            color: #0f172a;
+        }
+        .section-subtitle {
+            color: var(--muted);
+            margin: -.25rem 0 .9rem 0;
+            font-size: .94rem;
+        }
+
+        div[data-testid="stSelectbox"] label,
+        div[data-testid="stNumberInput"] label,
+        div[data-testid="stSlider"] label,
+        div[data-testid="stCheckbox"] label {
+            color: #334155 !important;
+            font-weight: 650 !important;
+        }
+        div[data-baseweb="select"] > div,
+        div[data-testid="stNumberInput"] input {
+            border-radius: 15px !important;
+            border-color: rgba(148, 163, 184, 0.45) !important;
+            background: rgba(255,255,255,.92) !important;
+        }
+        div[data-testid="stExpander"] {
+            border-radius: 20px !important;
+            border: 1px solid var(--line) !important;
+            background: rgba(255,255,255,.75) !important;
+        }
+
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(5, minmax(190px, 1fr));
+            gap: .9rem;
+            margin: 1rem 0 1.05rem 0;
+        }
+        .kpi-card {
+            position: relative;
+            overflow: hidden;
+            min-height: 142px;
+            padding: 1rem 1rem .95rem 1rem;
+            border-radius: 24px;
+            background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+            border: 1px solid rgba(148,163,184,.30);
+            box-shadow: 0 18px 40px rgba(15,23,42,.08);
+        }
+        .kpi-card:before {
+            content: "";
+            position: absolute;
+            inset: 0 auto 0 0;
+            width: 5px;
+            background: linear-gradient(180deg, var(--accent), var(--accent-2));
+        }
+        .kpi-label {
+            color: #64748b;
+            font-size: .80rem;
+            font-weight: 800;
+            letter-spacing: .02em;
+            text-transform: uppercase;
+            margin-left: .15rem;
+        }
+        .kpi-value {
+            color: #0f172a;
+            font-weight: 850;
+            line-height: 1.08;
+            letter-spacing: -0.045em;
+            font-size: clamp(1.35rem, 1.75vw, 2.15rem);
+            margin-top: .55rem;
+            overflow-wrap: anywhere;
+            word-break: normal;
+            white-space: normal;
+        }
+        .kpi-note {
+            color: #64748b;
+            font-size: .82rem;
+            line-height: 1.35;
+            margin-top: .55rem;
+        }
+        .kpi-wide .kpi-value {
+            font-size: clamp(1.10rem, 1.35vw, 1.55rem);
+            letter-spacing: -0.035em;
+        }
+
+        .mini-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(180px, 1fr));
+            gap: .85rem;
+            margin: .15rem 0 1rem 0;
+        }
+        .mini-card {
+            padding: .9rem .95rem;
+            border-radius: 20px;
+            background: rgba(255,255,255,.82);
+            border: 1px solid rgba(148,163,184,.25);
+        }
+        .mini-label {
+            color: #64748b;
+            font-size: .76rem;
+            font-weight: 750;
+            text-transform: uppercase;
+            letter-spacing: .02em;
+        }
+        .mini-value {
+            margin-top: .35rem;
+            color: #0f172a;
+            font-weight: 800;
+            font-size: 1.05rem;
+            overflow-wrap: anywhere;
+        }
+
+        .chart-shell {
+            background: rgba(255,255,255,.86);
+            border: 1px solid rgba(148,163,184,.25);
+            border-radius: 24px;
+            padding: .7rem .7rem .25rem .7rem;
+            box-shadow: 0 16px 40px rgba(15,23,42,.07);
+        }
+
+        div[data-testid="stDataFrame"] {
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 18px 42px rgba(15,23,42,.07);
+            border: 1px solid rgba(148,163,184,.25);
+        }
+        .stDownloadButton button {
+            border-radius: 999px !important;
+            padding: .65rem 1.05rem !important;
+            border: 1px solid rgba(37,99,235,.22) !important;
+            background: linear-gradient(135deg, #2563eb, #14b8a6) !important;
+            color: white !important;
+            font-weight: 800 !important;
+            box-shadow: 0 14px 34px rgba(37,99,235,.22);
+        }
+
+        @media (max-width: 1250px) {
+            .kpi-grid {grid-template-columns: repeat(3, minmax(190px, 1fr));}
+            .mini-grid {grid-template-columns: repeat(2, minmax(180px, 1fr));}
+        }
+        @media (max-width: 760px) {
+            .block-container {padding-left: .8rem; padding-right: .8rem;}
+            .hero {padding: 1.2rem; border-radius: 24px;}
+            .kpi-grid {grid-template-columns: 1fr;}
+            .mini-grid {grid-template-columns: 1fr;}
+        }
     </style>
     """, unsafe_allow_html=True)
+
+
 
 
 def load_embedded_dataset(name: str = DEFAULT_DATASET) -> bytes:
@@ -439,43 +689,122 @@ def fmt_date(value: object) -> str:
     return pd.to_datetime(value).strftime("%Y-%m")
 
 
+def _metric_card(label: str, value: str, note: str = "", wide: bool = False) -> str:
+    wide_class = " kpi-wide" if wide else ""
+    return (
+        f'<div class="kpi-card{wide_class}">'
+        f'<div class="kpi-label">{label}</div>'
+        f'<div class="kpi-value">{value}</div>'
+        f'<div class="kpi-note">{note}</div>'
+        '</div>'
+    )
+
+
+def _mini_card(label: str, value: str) -> str:
+    return (
+        '<div class="mini-card">'
+        f'<div class="mini-label">{label}</div>'
+        f'<div class="mini-value">{value}</div>'
+        '</div>'
+    )
+
+
 def render_metric_cards(stats: pd.Series, currency_symbol: str, target_wealth: float, inflation_annual: float) -> None:
-    c1, c2, c3, c4, c5 = st.columns(5)
-    c1.metric("Median ending wealth", fmt_currency(stats["median"], currency_symbol))
-    c2.metric("10th-90th range", f"{fmt_currency(stats['p10'], currency_symbol)} - {fmt_currency(stats['p90'], currency_symbol)}")
-    if inflation_annual > 0:
-        c3.metric("Median in today's money", fmt_currency(stats["real_median"], currency_symbol))
-    else:
-        c3.metric("Mean ending wealth", fmt_currency(stats["mean"], currency_symbol))
-    c4.metric("Median money-weighted return", fmt_percent(stats["mwr_median"]))
-    if target_wealth > 0:
-        c5.metric("Historical windows >= target", fmt_percent(stats["prob_above_target"]))
-    else:
-        c5.metric("Windows below paid-in", fmt_percent(stats["prob_below_contribution"]))
+    range_value = f"{fmt_currency(stats['p10'], currency_symbol)} → {fmt_currency(stats['p90'], currency_symbol)}"
+    third_label = "Median today's money" if inflation_annual > 0 else "Mean ending wealth"
+    third_value = fmt_currency(stats["real_median"], currency_symbol) if inflation_annual > 0 else fmt_currency(stats["mean"], currency_symbol)
+    fifth_label = "Windows above target" if target_wealth > 0 else "Windows below paid-in"
+    fifth_value = fmt_percent(stats["prob_above_target"]) if target_wealth > 0 else fmt_percent(stats["prob_below_contribution"])
+
+    html = "".join([
+        _metric_card("Median ending wealth", fmt_currency(stats["median"], currency_symbol), "Middle historical rolling outcome."),
+        _metric_card("10th → 90th range", range_value, "Central historical outcome band.", wide=True),
+        _metric_card(third_label, third_value, "Inflation-adjusted view." if inflation_annual > 0 else "Average across all windows."),
+        _metric_card("Median MWR", fmt_percent(stats["mwr_median"]), "Money-weighted annual return estimate."),
+        _metric_card(fifth_label, fifth_value, "Share of historical windows."),
+    ])
+    st.markdown(f'<div class="kpi-grid">{html}</div>', unsafe_allow_html=True)
+
+    mini_html = "".join([
+        _mini_card("Historical windows", f"{int(stats['count']):,}"),
+        _mini_card("Paid in", fmt_currency(stats["total_contribution"], currency_symbol)),
+        _mini_card("Median fees", fmt_currency(stats["fees_median"], currency_symbol)),
+        _mini_card("Median max drawdown", fmt_percent(stats["max_drawdown_median"])),
+    ])
+    st.markdown(f'<div class="mini-grid">{mini_html}</div>', unsafe_allow_html=True)
+
+
+
+
+def _chart_layout(fig: go.Figure, title: str, height: int = 520) -> go.Figure:
+    fig.update_layout(
+        title=dict(text=title, x=0.02, xanchor="left", font=dict(size=20, color="#0f172a")),
+        font=dict(family="Inter, Segoe UI, Roboto, Arial, sans-serif", color="#334155"),
+        height=height,
+        hoverlabel=dict(bgcolor="white", font_size=13, font_family="Inter, Segoe UI, Roboto, Arial, sans-serif"),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(255,255,255,0)",
+        margin=dict(l=64, r=28, t=64, b=64),
+    )
+    fig.update_xaxes(showgrid=True, gridcolor="rgba(148,163,184,.18)", zeroline=False, automargin=True, title_font=dict(size=13), tickfont=dict(size=12))
+    fig.update_yaxes(showgrid=True, gridcolor="rgba(148,163,184,.18)", zeroline=False, automargin=True, title_font=dict(size=13), tickfont=dict(size=12))
+    return fig
 
 
 def build_distribution_chart(result: HistoricalSimulationResult, currency_symbol: str, target_wealth: float) -> go.Figure:
     df = pd.DataFrame({"Final wealth": result.final_values})
-    fig = px.histogram(df, x="Final wealth", nbins=36)
-    fig.add_vline(x=float(result.stats["median"]), line_dash="dash", annotation_text="Median", annotation_position="top")
-    fig.add_vline(x=float(result.stats["mean"]), line_dash="dot", annotation_text="Mean", annotation_position="top")
+    fig = px.histogram(df, x="Final wealth", nbins=40, opacity=0.86)
+    fig.update_traces(
+        marker_line_width=0,
+        hovertemplate=f"Final wealth={currency_symbol}%{{x:,.0f}}<br>Windows=%{{y}}<extra></extra>",
+    )
+    fig.add_vline(x=float(result.stats["median"]), line_dash="dash", line_width=2, annotation_text="Median", annotation_position="top")
+    fig.add_vline(x=float(result.stats["mean"]), line_dash="dot", line_width=2, annotation_text="Mean", annotation_position="top")
     if target_wealth > 0:
-        fig.add_vline(x=float(target_wealth), line_dash="solid", annotation_text="Target", annotation_position="top right")
-    fig.update_traces(hovertemplate=f"Final wealth={currency_symbol}%{{x:,.0f}}<br>Count=%{{y}}<extra></extra>")
-    fig.update_layout(title=f"Distribution of ending wealth - {result.years} years", xaxis_title=f"Final wealth ({currency_symbol})", yaxis_title="Rolling historical windows", bargap=0.08, margin=dict(l=10, r=10, t=50, b=10), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    return fig
+        fig.add_vline(x=float(target_wealth), line_dash="solid", line_width=2, annotation_text="Target", annotation_position="top right")
+    fig.update_xaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
+    fig.update_yaxes(title_text="Historical rolling windows")
+    return _chart_layout(fig, f"Ending wealth distribution · {result.years} years", height=525)
 
 
 def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str, inflation_annual: float) -> go.Figure:
     fig = go.Figure()
-    fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["p10"], mode="lines", line=dict(width=0), hoverinfo="skip", showlegend=False))
-    fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["p90"], mode="lines", line=dict(width=0), fill="tonexty", name="10th-90th percentile", hovertemplate=f"Years=%{{x}}<br>Band upper={currency_symbol}%{{y:,.0f}}<extra></extra>"))
-    fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["median"], mode="lines", name="Median nominal", line=dict(shape="spline", smoothing=1.0, width=3), hovertemplate=f"Years=%{{x}}<br>Median={currency_symbol}%{{y:,.0f}}<extra></extra>"))
-    fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["mean"], mode="lines", name="Mean nominal", line=dict(shape="spline", smoothing=1.0, width=3, dash="dot"), hovertemplate=f"Years=%{{x}}<br>Mean={currency_symbol}%{{y:,.0f}}<extra></extra>"))
+    fig.add_trace(go.Scatter(
+        x=summary_df["years"], y=summary_df["p10"], mode="lines",
+        line=dict(width=0), hoverinfo="skip", showlegend=False,
+    ))
+    fig.add_trace(go.Scatter(
+        x=summary_df["years"], y=summary_df["p90"], mode="lines",
+        line=dict(width=0), fill="tonexty", fillcolor="rgba(37,99,235,0.14)",
+        name="10th-90th percentile",
+        hovertemplate=f"Years=%{{x}}<br>90th percentile={currency_symbol}%{{y:,.0f}}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=summary_df["years"], y=summary_df["median"], mode="lines",
+        name="Median nominal", line=dict(shape="spline", smoothing=1.0, width=4, color="#2563eb"),
+        hovertemplate=f"Years=%{{x}}<br>Median={currency_symbol}%{{y:,.0f}}<extra></extra>",
+    ))
+    fig.add_trace(go.Scatter(
+        x=summary_df["years"], y=summary_df["mean"], mode="lines",
+        name="Mean nominal", line=dict(shape="spline", smoothing=1.0, width=3, dash="dot", color="#14b8a6"),
+        hovertemplate=f"Years=%{{x}}<br>Mean={currency_symbol}%{{y:,.0f}}<extra></extra>",
+    ))
     if inflation_annual > 0:
-        fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["real_median"], mode="lines", name="Median real/today's money", line=dict(shape="spline", smoothing=1.0, width=3, dash="dash"), hovertemplate=f"Years=%{{x}}<br>Real median={currency_symbol}%{{y:,.0f}}<extra></extra>"))
-    fig.update_layout(title="Ending wealth across horizons", xaxis_title="Investment horizon (years)", yaxis_title=f"Final wealth ({currency_symbol})", height=580, hovermode="x unified", legend=dict(orientation="h", yanchor="top", y=-0.22, xanchor="center", x=0.5, title=None), margin=dict(l=10, r=10, t=50, b=95), paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)")
-    return fig
+        fig.add_trace(go.Scatter(
+            x=summary_df["years"], y=summary_df["real_median"], mode="lines",
+            name="Median today's money", line=dict(shape="spline", smoothing=1.0, width=3, dash="dash", color="#f97316"),
+            hovertemplate=f"Years=%{{x}}<br>Real median={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        ))
+    fig.update_xaxes(title_text="Investment horizon (years)")
+    fig.update_yaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
+    fig.update_layout(
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None),
+        margin=dict(l=72, r=28, t=64, b=98),
+    )
+    return _chart_layout(fig, "Ending wealth across horizons", height=610)
+
+
 
 
 def render_dataset_diagnostics(base_returns_df: pd.DataFrame, returns_df: pd.DataFrame, selected_dataset: str, output_currency: str) -> None:
@@ -548,10 +877,24 @@ def make_summary_table(summary_df: pd.DataFrame, currency_symbol: str, target_we
 
 def main() -> None:
     inject_css()
-    st.markdown("""<div class="hero"><h1>SNP500 investment studio</h1><p>A historical rolling-window study of long-term S&P 500 investing. This version adds stronger methodology controls: contribution timing, full FX coverage filtering, money-weighted return, fee totals, drawdown, real-value discounting and target-hit diagnostics.</p></div>""", unsafe_allow_html=True)
+    st.markdown("""
+    <div class="hero">
+        <div class="hero-row">
+            <div>
+                <h1>S&amp;P 500 Investment Studio</h1>
+                <p>Explore long-term investing outcomes with rolling historical windows, local-currency conversion, fees, drawdown, inflation and target-hit diagnostics.</p>
+                <div class="hero-badges">
+                    <span class="badge">Rolling history</span>
+                    <span class="badge">GBP / USD / EUR</span>
+                    <span class="badge">Money-weighted return</span>
+                    <span class="badge">Fees + drawdown</span>
+                </div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
-    st.markdown('<div class="section-card">', unsafe_allow_html=True)
-    st.subheader("Study settings")
+    st.markdown('<div class="section-card"><div class="section-title"><h2>Study settings</h2></div><div class="section-subtitle">Choose the dataset, currency, contributions and robustness assumptions.</div>', unsafe_allow_html=True)
 
     top_a, top_b, top_c = st.columns([1.2, 0.8, 1.0])
     selected_dataset = top_a.selectbox("Embedded dataset", list(EMBEDDED_DATASETS.keys()), index=list(EMBEDDED_DATASETS.keys()).index(DEFAULT_DATASET))
@@ -604,21 +947,27 @@ def main() -> None:
     summary_df = pd.DataFrame([{"years": r.years, **r.stats.to_dict()} for r in horizon_results])
     primary = next(r for r in horizon_results if r.years == int(featured_horizon))
 
+    st.markdown('<div class="section-title"><h2>Dashboard overview</h2></div><div class="section-subtitle">Large figures are now rendered in custom responsive cards, so values should not be clipped.</div>', unsafe_allow_html=True)
     render_metric_cards(primary.stats, currency_symbol, target_wealth, inflation_annual)
 
-    left, right = st.columns([1.1, 1.2])
+    left, right = st.columns([1.0, 1.22])
     with left:
-        st.plotly_chart(build_distribution_chart(primary, currency_symbol, target_wealth), width="stretch", theme="streamlit")
+        st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
+        st.plotly_chart(build_distribution_chart(primary, currency_symbol, target_wealth), width="stretch", theme=None)
+        st.markdown('</div>', unsafe_allow_html=True)
     with right:
-        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol, inflation_annual), width="stretch", theme="streamlit")
+        st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
+        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol, inflation_annual), width="stretch", theme=None)
+        st.markdown('</div>', unsafe_allow_html=True)
 
     render_fx_diagnostics(fx_diag, only_full_fx_windows)
     render_dataset_diagnostics(base_returns_df, returns_df, selected_dataset, output_currency)
     render_methodology_notes(contribution_timing_label, only_full_fx_windows, inflation_annual, target_wealth)
 
-    st.subheader("Summary table")
+    st.markdown('<div class="section-card"><div class="section-title"><h2>Summary table</h2></div><div class="section-subtitle">Scrollable detailed statistics for every horizon in the selected range.</div>', unsafe_allow_html=True)
     table_df = make_summary_table(summary_df, currency_symbol, target_wealth, inflation_annual)
-    st.dataframe(table_df, width="stretch", hide_index=True)
+    st.dataframe(table_df, width="stretch", hide_index=True, height=430)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     csv_df = summary_df.copy()
     for col in ["worst_start", "worst_end", "best_start", "best_end"]:
