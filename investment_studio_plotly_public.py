@@ -43,6 +43,19 @@ class HistoricalSimulationResult:
     stats: pd.Series
 
 
+@dataclass
+class MonteCarloSimulationResult:
+    years: int
+    total_contribution: float
+    final_values: pd.Series
+    total_fees: pd.Series
+    max_drawdowns: pd.Series
+    stats: pd.Series
+    simulations: int
+    block_months: int
+
+
+
 CONTRIBUTION_TIMING_OPTIONS = {
     "Start of month (optimistic)": "start",
     "End of month (conservative)": "end",
@@ -815,6 +828,203 @@ def simulate_rolling_horizon(returns_df: pd.DataFrame, years: int, initial_inves
     return HistoricalSimulationResult(years, float(total_contribution), start_dates_s, end_dates_s, final_values_s, total_fees_s, max_drawdowns_s, stats)
 
 
+
+
+def simulate_path_from_returns(
+    path_returns: np.ndarray,
+    initial_investment: float,
+    monthly_contribution: float,
+    fund_fee_annual: float,
+    platform_fee_annual: float,
+    platform_fee_monthly_min: float,
+    platform_fee_annual_cap: float,
+    contribution_timing: str,
+) -> tuple[float, float, float]:
+    """Run one portfolio path and return final value, total fees and max drawdown."""
+    portfolio = float(initial_investment)
+    total_fees_paid = 0.0
+    peak = max(portfolio, 1e-12)
+    max_dd = 0.0
+
+    for ret in np.asarray(path_returns, dtype=float):
+        if contribution_timing == "start":
+            portfolio += monthly_contribution
+            portfolio *= (1.0 + float(ret))
+            portfolio, fee_paid = apply_period_fee(
+                portfolio,
+                fund_fee_annual,
+                platform_fee_annual,
+                platform_fee_monthly_min,
+                platform_fee_annual_cap,
+            )
+        else:
+            portfolio *= (1.0 + float(ret))
+            portfolio, fee_paid = apply_period_fee(
+                portfolio,
+                fund_fee_annual,
+                platform_fee_annual,
+                platform_fee_monthly_min,
+                platform_fee_annual_cap,
+            )
+            portfolio += monthly_contribution
+
+        total_fees_paid += fee_paid
+        peak = max(peak, portfolio, 1e-12)
+        max_dd = min(max_dd, (portfolio / peak) - 1.0)
+
+    return float(portfolio), float(total_fees_paid), float(max_dd)
+
+
+def summarise_monte_carlo_distribution(
+    final_values: pd.Series,
+    total_contribution: float,
+    years: int,
+    initial_investment: float,
+    monthly_contribution: float,
+    contribution_timing: str,
+    total_fees: pd.Series,
+    max_drawdowns: pd.Series,
+    target_wealth: float,
+    inflation_annual: float,
+) -> pd.Series:
+    if final_values.empty:
+        raise ValueError("No Monte Carlo paths were generated.")
+
+    wealth_multiple = final_values / total_contribution if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
+    paid_in_annualised = (wealth_multiple ** (1 / years) - 1) if total_contribution > 0 else pd.Series(np.nan, index=final_values.index)
+    real_discount = (1.0 + inflation_annual) ** years
+    real_values = final_values / real_discount if real_discount > 0 else final_values.copy()
+
+    median_final = float(final_values.median())
+    p10_final = float(final_values.quantile(0.10))
+    p90_final = float(final_values.quantile(0.90))
+
+    return pd.Series({
+        "count": int(final_values.count()),
+        "total_contribution": float(total_contribution),
+        "min": float(final_values.min()),
+        "p05": float(final_values.quantile(0.05)),
+        "p10": p10_final,
+        "median": median_final,
+        "mean": float(final_values.mean()),
+        "p90": p90_final,
+        "p95": float(final_values.quantile(0.95)),
+        "max": float(final_values.max()),
+        "std": float(final_values.std(ddof=1)),
+        "real_p10": float(real_values.quantile(0.10)),
+        "real_median": float(real_values.median()),
+        "real_p90": float(real_values.quantile(0.90)),
+        "wealth_multiple_median": float(wealth_multiple.median()) if total_contribution > 0 else float("nan"),
+        "paid_in_annualised_median": float(paid_in_annualised.median()) if total_contribution > 0 else float("nan"),
+        "mwr_p10": cashflow_irr_from_final_value(p10_final, years, initial_investment, monthly_contribution, contribution_timing),
+        "mwr_median": cashflow_irr_from_final_value(median_final, years, initial_investment, monthly_contribution, contribution_timing),
+        "mwr_p90": cashflow_irr_from_final_value(p90_final, years, initial_investment, monthly_contribution, contribution_timing),
+        "prob_below_contribution": float((final_values < total_contribution).mean()) if total_contribution > 0 else float("nan"),
+        "prob_above_target": float((final_values >= target_wealth).mean()) if target_wealth > 0 else float("nan"),
+        "fees_median": float(total_fees.median()),
+        "fees_mean": float(total_fees.mean()),
+        "max_drawdown_median": float(max_drawdowns.median()),
+        "max_drawdown_worst": float(max_drawdowns.min()),
+    })
+
+
+def simulate_monte_carlo_block_bootstrap(
+    returns_df: pd.DataFrame,
+    years: int,
+    initial_investment: float,
+    monthly_contribution: float,
+    fund_fee_annual: float,
+    platform_fee_annual: float,
+    platform_fee_monthly_min: float,
+    platform_fee_annual_cap: float,
+    contribution_timing: str,
+    only_full_fx_windows: bool,
+    target_wealth: float,
+    inflation_annual: float,
+    n_simulations: int,
+    block_months: int,
+    random_seed: int,
+) -> MonteCarloSimulationResult:
+    """Block-bootstrap Monte Carlo using historical monthly returns.
+
+    The purpose is not to predict the future precisely. It resamples contiguous
+    blocks of historical monthly returns, preserving some volatility clustering
+    and regime behaviour better than a single-month shuffle.
+    """
+    months = int(years * 12)
+    n_simulations = int(n_simulations)
+    block_months = int(block_months)
+
+    if months <= 0:
+        raise ValueError("Monte Carlo horizon must be positive.")
+    if n_simulations < 10:
+        raise ValueError("Use at least 10 Monte Carlo paths.")
+    if block_months < 1:
+        raise ValueError("Block length must be at least 1 month.")
+
+    data = returns_df.copy().reset_index(drop=True)
+    if only_full_fx_windows:
+        data = data.loc[data.get("fx_covered", pd.Series(True, index=data.index)).astype(bool)].reset_index(drop=True)
+
+    available_returns = data["return"].dropna().to_numpy(dtype=float)
+    n = len(available_returns)
+    if n < block_months:
+        raise ValueError(
+            f"Not enough monthly returns for a {block_months}-month bootstrap block after filters. "
+            "Reduce the block length, disable full-FX coverage, or choose a longer sample."
+        )
+
+    rng = np.random.default_rng(int(random_seed))
+    max_start = n - block_months + 1
+    final_values, total_fees_all, max_drawdowns_all = [], [], []
+
+    for _ in range(n_simulations):
+        sampled = []
+        while len(sampled) < months:
+            start = int(rng.integers(0, max_start))
+            sampled.extend(available_returns[start:start + block_months])
+        path_returns = np.asarray(sampled[:months], dtype=float)
+        final_value, fees_paid, max_dd = simulate_path_from_returns(
+            path_returns,
+            initial_investment,
+            monthly_contribution,
+            fund_fee_annual,
+            platform_fee_annual,
+            platform_fee_monthly_min,
+            platform_fee_annual_cap,
+            contribution_timing,
+        )
+        final_values.append(final_value)
+        total_fees_all.append(fees_paid)
+        max_drawdowns_all.append(max_dd)
+
+    final_values_s = pd.Series(final_values, name="final_value")
+    total_fees_s = pd.Series(total_fees_all, name="total_fees")
+    max_drawdowns_s = pd.Series(max_drawdowns_all, name="max_drawdown")
+    total_contribution = initial_investment + monthly_contribution * months
+    stats = summarise_monte_carlo_distribution(
+        final_values_s,
+        float(total_contribution),
+        years,
+        initial_investment,
+        monthly_contribution,
+        contribution_timing,
+        total_fees_s,
+        max_drawdowns_s,
+        target_wealth,
+        inflation_annual,
+    )
+    return MonteCarloSimulationResult(
+        years=years,
+        total_contribution=float(total_contribution),
+        final_values=final_values_s,
+        total_fees=total_fees_s,
+        max_drawdowns=max_drawdowns_s,
+        stats=stats,
+        simulations=n_simulations,
+        block_months=block_months,
+    )
+
 def fmt_currency(value: float, currency_symbol: str) -> str:
     if pd.isna(value):
         return "n/a"
@@ -959,6 +1169,83 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str, inflatio
 
 
 
+
+
+def render_monte_carlo_metric_cards(mc_result: MonteCarloSimulationResult, currency_symbol: str, target_wealth: float, inflation_annual: float) -> None:
+    stats = mc_result.stats
+    range_value = f"{fmt_currency(stats['p10'], currency_symbol)} → {fmt_currency(stats['p90'], currency_symbol)}"
+    fifth_label = "MC paths above target" if target_wealth > 0 else "MC paths below paid-in"
+    fifth_value = fmt_percent(stats["prob_above_target"]) if target_wealth > 0 else fmt_percent(stats["prob_below_contribution"])
+
+    html = "".join([
+        _metric_card("MC median ending wealth", fmt_currency(stats["median"], currency_symbol), f"{mc_result.simulations:,} block-bootstrap paths."),
+        _metric_card("MC 10th → 90th range", range_value, f"{mc_result.block_months}-month blocks.", wide=True),
+        _metric_card("MC median today's money" if inflation_annual > 0 else "MC mean ending wealth", fmt_currency(stats["real_median" if inflation_annual > 0 else "mean"], currency_symbol), "Inflation-adjusted." if inflation_annual > 0 else "Average synthetic path."),
+        _metric_card("MC median MWR", fmt_percent(stats["mwr_median"]), "Money-weighted annual return."),
+        _metric_card(fifth_label, fifth_value, "Share of Monte Carlo paths."),
+    ])
+    st.markdown(f'<div class="kpi-grid">{html}</div>', unsafe_allow_html=True)
+
+    mini_html = "".join([
+        _mini_card("Monte Carlo paths", f"{int(stats['count']):,}"),
+        _mini_card("Block length", f"{mc_result.block_months} months"),
+        _mini_card("Median fees", fmt_currency(stats["fees_median"], currency_symbol)),
+        _mini_card("Median max drawdown", fmt_percent(stats["max_drawdown_median"])),
+    ])
+    st.markdown(f'<div class="mini-grid">{mini_html}</div>', unsafe_allow_html=True)
+
+
+def build_monte_carlo_comparison_chart(historical_result: HistoricalSimulationResult, mc_result: MonteCarloSimulationResult, currency_symbol: str, target_wealth: float) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(go.Histogram(
+        x=historical_result.final_values,
+        nbinsx=45,
+        name="Historical rolling windows",
+        marker_color="#38bdf8",
+        opacity=0.58,
+        hovertemplate=f"Historical final wealth={currency_symbol}%{{x:,.0f}}<br>Windows=%{{y}}<extra></extra>",
+    ))
+    fig.add_trace(go.Histogram(
+        x=mc_result.final_values,
+        nbinsx=45,
+        name="Monte Carlo block bootstrap",
+        marker_color="#a78bfa",
+        opacity=0.50,
+        hovertemplate=f"Monte Carlo final wealth={currency_symbol}%{{x:,.0f}}<br>Paths=%{{y}}<extra></extra>",
+    ))
+    fig.add_vline(x=float(historical_result.stats["median"]), line_dash="dash", line_width=2, line_color="#38bdf8", annotation_text="Historical median", annotation_position="top left", annotation_font_color="#bae6fd")
+    fig.add_vline(x=float(mc_result.stats["median"]), line_dash="dash", line_width=2, line_color="#a78bfa", annotation_text="MC median", annotation_position="top right", annotation_font_color="#ddd6fe")
+    if target_wealth > 0:
+        fig.add_vline(x=float(target_wealth), line_dash="solid", line_width=2, line_color="#fbbf24", annotation_text="Target", annotation_position="top", annotation_font_color="#fde68a")
+    fig.update_layout(
+        barmode="overlay",
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
+        margin=dict(l=72, r=28, t=64, b=98),
+    )
+    fig.update_xaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
+    fig.update_yaxes(title_text="Count")
+    return _chart_layout(fig, f"Historical vs Monte Carlo · {historical_result.years} years", height=570)
+
+
+def make_monte_carlo_comparison_table(historical_stats: pd.Series, mc_stats: pd.Series, currency_symbol: str, target_wealth: float, inflation_annual: float) -> pd.DataFrame:
+    rows = [
+        ("Samples", f"{int(historical_stats['count']):,} windows", f"{int(mc_stats['count']):,} paths"),
+        ("P5", fmt_currency(historical_stats["p05"], currency_symbol), fmt_currency(mc_stats["p05"], currency_symbol)),
+        ("P10", fmt_currency(historical_stats["p10"], currency_symbol), fmt_currency(mc_stats["p10"], currency_symbol)),
+        ("Median", fmt_currency(historical_stats["median"], currency_symbol), fmt_currency(mc_stats["median"], currency_symbol)),
+        ("Mean", fmt_currency(historical_stats["mean"], currency_symbol), fmt_currency(mc_stats["mean"], currency_symbol)),
+        ("P90", fmt_currency(historical_stats["p90"], currency_symbol), fmt_currency(mc_stats["p90"], currency_symbol)),
+        ("P95", fmt_currency(historical_stats["p95"], currency_symbol), fmt_currency(mc_stats["p95"], currency_symbol)),
+        ("Median today's money" if inflation_annual > 0 else "Median discounted", fmt_currency(historical_stats["real_median"], currency_symbol), fmt_currency(mc_stats["real_median"], currency_symbol)),
+        ("Median MWR", fmt_percent(historical_stats["mwr_median"]), fmt_percent(mc_stats["mwr_median"])),
+        ("Below paid-in", fmt_percent(historical_stats["prob_below_contribution"]), fmt_percent(mc_stats["prob_below_contribution"])),
+        ("Above target" if target_wealth > 0 else "Above target", fmt_percent(historical_stats["prob_above_target"]), fmt_percent(mc_stats["prob_above_target"])),
+        ("Median fees", fmt_currency(historical_stats["fees_median"], currency_symbol), fmt_currency(mc_stats["fees_median"], currency_symbol)),
+        ("Median max drawdown", fmt_percent(historical_stats["max_drawdown_median"]), fmt_percent(mc_stats["max_drawdown_median"])),
+    ]
+    return pd.DataFrame(rows, columns=["Metric", "Historical rolling", "Monte Carlo block bootstrap"])
+
 def render_dataset_diagnostics(base_returns_df: pd.DataFrame, returns_df: pd.DataFrame, selected_dataset: str, output_currency: str) -> None:
     raw_returns = base_returns_df["return"].astype(float)
     adjusted_returns = returns_df["return"].astype(float)
@@ -1001,18 +1288,19 @@ def render_methodology_notes(contribution_timing_label: str, only_full_fx_window
 - Added a money-weighted return estimate for the median, 10th and 90th percentile outcomes.
 - Added FX full-coverage filtering: **{'enabled' if only_full_fx_windows else 'disabled'}**.
 - Added fee totals, portfolio drawdown, target-hit probability, and below-paid-in probability.
+- Added a block-bootstrap Monte Carlo module for the featured horizon.
 - Added a simple real/today's-money view using assumed inflation of **{inflation_annual * 100:.2f}% per year**.
 
 **How to read the results**
 - The results are historical rolling scenarios, not forecasts.
 - The money-weighted return is more meaningful than the old paid-in CAGR when monthly contributions are used.
 - The drawdown shown is based on portfolio value after contributions and fees, so it is not identical to pure market drawdown.
-- If a target is set at **{target_wealth:,.0f}**, the probability is the share of historical rolling windows that ended above that target.
+- If a target is set at **{target_wealth:,.0f}**, the historical probability is the share of rolling windows that ended above that target.
+- The Monte Carlo module resamples contiguous monthly-return blocks. It improves robustness compared with pure rolling windows, but it still depends on historical return behaviour.
 
 **Still worth adding later if you want even stronger robustness**
 - CPI datasets instead of a manual inflation assumption.
 - Separate dividend, valuation and currency attribution.
-- Block-bootstrap Monte Carlo using historical monthly return blocks.
 - Regime split reports: pre-war, post-war, 1970s inflation, dot-com, GFC, COVID/2022.
 - Tax wrapper mode: ISA, SIPP, GIA.
         """)
@@ -1044,6 +1332,7 @@ def main() -> None:
                     <span class="badge">GBP / USD / EUR</span>
                     <span class="badge">Money-weighted return</span>
                     <span class="badge">Fees + drawdown</span>
+                    <span class="badge">Monte Carlo</span>
                 </div>
             </div>
         </div>
@@ -1112,6 +1401,13 @@ def main() -> None:
         inflation_annual = j.number_input("Inflation for today's-money view (% / year)", min_value=0.0, value=2.5, step=0.25) / 100.0
         target_wealth = k.number_input(f"Target wealth ({currency_symbol}, optional)", min_value=0.0, value=0.0, step=10000.0)
         featured_horizon = l.slider("Featured horizon", min_value=int(year_range[0]), max_value=int(year_range[1]), value=int(year_range[1]))
+
+        st.markdown("---")
+        m, n, o, p = st.columns(4)
+        enable_monte_carlo = m.checkbox("Run Monte Carlo", value=True, help="Runs a block-bootstrap Monte Carlo for the featured horizon using the selected historical sample and assumptions.")
+        mc_simulations = n.number_input("Monte Carlo paths", min_value=100, max_value=20000, value=3000, step=100)
+        mc_block_months = o.slider("Bootstrap block length (months)", min_value=1, max_value=60, value=12, help="Longer blocks preserve more market clustering; 12 months is a reasonable default for annual regime behaviour.")
+        mc_seed = p.number_input("Monte Carlo seed", min_value=0, max_value=999999, value=42, step=1)
     st.markdown('</div>', unsafe_allow_html=True)
 
     try:
@@ -1136,6 +1432,50 @@ def main() -> None:
         st.plotly_chart(build_horizon_chart(summary_df, currency_symbol, inflation_annual), width="stretch", theme=None)
         st.markdown('</div>', unsafe_allow_html=True)
 
+    if enable_monte_carlo:
+        st.markdown('<div class="section-title"><h2>Monte Carlo block-bootstrap study</h2></div><div class="section-subtitle">Synthetic paths for the featured horizon. The simulation resamples contiguous historical return blocks, so it is more robust than a simple monthly shuffle but still remains history-based.</div>', unsafe_allow_html=True)
+        try:
+            mc_result = simulate_monte_carlo_block_bootstrap(
+                returns_df,
+                int(featured_horizon),
+                initial_investment,
+                monthly_contribution,
+                fund_fee_annual,
+                platform_fee_annual,
+                platform_fee_monthly_min,
+                platform_fee_annual_cap,
+                contribution_timing,
+                only_full_fx_windows,
+                target_wealth,
+                inflation_annual,
+                int(mc_simulations),
+                int(mc_block_months),
+                int(mc_seed),
+            )
+        except ValueError as exc:
+            st.warning(f"Monte Carlo could not run: {exc}")
+        else:
+            render_monte_carlo_metric_cards(mc_result, currency_symbol, target_wealth, inflation_annual)
+            st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
+            st.plotly_chart(build_monte_carlo_comparison_chart(primary, mc_result, currency_symbol, target_wealth), width="stretch", theme=None)
+            st.markdown('</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-card"><div class="section-title"><h2>Historical vs Monte Carlo comparison</h2></div><div class="section-subtitle">Monte Carlo results are not exact future probabilities. They are stress-tested synthetic paths drawn from the selected historical return sample.</div>', unsafe_allow_html=True)
+            mc_compare_df = make_monte_carlo_comparison_table(primary.stats, mc_result.stats, currency_symbol, target_wealth, inflation_annual)
+            st.dataframe(mc_compare_df, width="stretch", hide_index=True, height=485)
+            mc_export = pd.DataFrame({
+                "simulation": np.arange(1, len(mc_result.final_values) + 1),
+                "final_value": mc_result.final_values,
+                "total_fees": mc_result.total_fees,
+                "max_drawdown": mc_result.max_drawdowns,
+            })
+            st.download_button(
+                "Download Monte Carlo paths CSV",
+                mc_export.to_csv(index=False).encode("utf-8"),
+                file_name="monte_carlo_block_bootstrap_paths.csv",
+                mime="text/csv",
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
     render_fx_diagnostics(fx_diag, only_full_fx_windows)
     render_dataset_diagnostics(base_returns_df, returns_df, selected_dataset, output_currency)
     st.caption(f"Selected start period: {regime_meta['display']}. This option controls the sample start only; all data from that year through the latest month is included.")
@@ -1150,7 +1490,7 @@ def main() -> None:
     for col in ["worst_start", "worst_end", "best_start", "best_end"]:
         csv_df[col] = pd.to_datetime(csv_df[col]).dt.strftime("%Y-%m-%d")
     st.download_button("Download summary CSV", csv_df.to_csv(index=False).encode("utf-8"), file_name="historical_summary_statistics_robust.csv", mime="text/csv")
-    st.caption(f"Dataset: latest embedded S&P 500 data to {base_returns_df['date'].max().strftime('%Y-%m')}. Start period: {regime_meta['display']}. Output currency: {currency_label}. Horizon range shown: {int(year_range[0])} to {int(year_range[1])} years. Results are historical rolling scenarios, not forecasts or financial advice.")
+    st.caption(f"Dataset: latest embedded S&P 500 data to {base_returns_df['date'].max().strftime('%Y-%m')}. Start period: {regime_meta['display']}. Output currency: {currency_label}. Horizon range shown: {int(year_range[0])} to {int(year_range[1])} years. Results are historical rolling scenarios plus optional block-bootstrap Monte Carlo stress tests, not forecasts or financial advice.")
 
 
 if __name__ == "__main__":
