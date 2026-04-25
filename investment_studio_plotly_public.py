@@ -1579,6 +1579,206 @@ def render_methodology_notes(contribution_timing_label: str, only_full_fx_window
 - Tax wrapper mode: ISA, SIPP, GIA.
         """)
 
+
+
+def render_how_to_use_guide() -> None:
+    """Collapsible user guide for the dashboard controls and interpretation."""
+    with st.expander("📘 How to use this app and what each option means", expanded=False):
+        st.markdown("""
+### 1) A sensible first run
+
+Use this as a starting point before changing lots of assumptions:
+
+| Control | Suggested first setting | Why |
+|---|---|---|
+| Output currency | GBP if you invest/spend in the UK, otherwise USD | Matches the currency you care about |
+| Use only full-FX-covered windows | ON for GBP | Avoids historical windows with missing FX conversion |
+| Start study from | Stagflation or Full history | Stagflation gives a more modern post-1973 view; Full history gives the widest history |
+| Contribution timing | End of month | More conservative for salary-style investing |
+| Contribution growth | Fixed nominal first, then CPI-linked | Shows the difference between fixed cash and maintaining buying power |
+| Run Monte Carlo | ON | Adds a stress-test view beyond overlapping rolling windows |
+| Bootstrap block length | 12 months | Preserves some market clustering without being too rigid |
+| Forecast return anchor | Historical first, then Forward-return adjusted | Compare pure history against a planning assumption |
+| Extra tracking drag | 0.10% to 0.30% | Represents ETF tracking difference and real-world friction |
+
+---
+
+### 2) Study settings
+
+**Start study from** controls the earliest month included in the analysis. The simulation always runs from that start point to the latest available data. For example, choosing **Stagflation (1973-1982)** means: use data from **1973 to the latest dataset month**, not only 1973-1982.
+
+**Output currency** controls whether the result is shown in **USD** or **GBP**. GBP applies the embedded GBP/USD FX conversion before the investment simulation.
+
+**Use only full-FX-covered windows** should normally be **ON for GBP**. It removes rolling windows where the full investment period does not have reliable FX coverage. Leave it OFF only if you intentionally want the widest possible sample and accept that old GBP windows may be less reliable.
+
+**Initial investment** is your starting lump sum. **Monthly contribution** is the amount added each month according to the contribution timing and growth settings.
+
+**Investment horizon range** creates results for every horizon inside the range. For example, 10 to 35 years produces a table and chart for every horizon from 10 through 35.
+
+**Featured horizon** is the single horizon used for the main KPI cards and Monte Carlo comparison.
+
+---
+
+### 3) Fees, drag and contributions
+
+**Fund fee** is the annual ongoing charge of the fund/ETF.
+
+**Platform fee** is the annual platform charge. The app also allows a monthly minimum and annual cap, which is useful for UK platforms that cap ETF fees.
+
+**Extra tracking drag** is an additional annual cost/friction assumption. Use it for things not fully captured by the quoted fund fee, such as tracking difference, dividend withholding-tax leakage, bid/ask spread, and implementation friction.
+
+**Contribution timing**:
+
+| Option | Meaning | Bias |
+|---|---|---|
+| Start of month | Contribution gets that month’s market return | Slightly optimistic |
+| End of month | Contribution is added after that month’s return | More conservative |
+
+**Contribution growth**:
+
+| Option | Meaning | Good for |
+|---|---|---|
+| Fixed nominal contribution | Same cash amount every month | Simple direct-debit modelling |
+| Increase with CPI where available | Contribution rises with inflation | Maintaining today’s buying-power contribution |
+| Increase by custom annual rate | Contribution rises by your chosen percentage | Salary/pension contribution growth assumptions |
+
+---
+
+### 4) Historical rolling-window results
+
+The historical section answers:
+
+> What would have happened to an investor starting in each historical month, using the selected horizon and assumptions?
+
+The historical target metric is best read as **historical window share**, not a true future probability. If it says 70%, that means 70% of historical start months reached the target under your assumptions.
+
+The windows overlap heavily. A 30-year window starting in January and one starting in February share almost all the same months. This is why these results are powerful scenario evidence, but not independent statistical trials.
+
+---
+
+### 5) CPI / real-value results
+
+Nominal values show the cash amount at the end of the period. CPI-adjusted values estimate the result in today’s purchasing-power terms.
+
+For **GBP**, the app uses UK CPI. For **USD**, it uses US CPI. CPI-adjusted results are only calculated where the full window has CPI coverage. Nominal results can still use the full available S&P dataset.
+
+A useful way to read the app is:
+
+- **Nominal median** = headline future cash value.
+- **CPI-adjusted median** = rough today’s-money value.
+- **CPI coverage** = how much of the result has complete inflation data.
+
+---
+
+### 6) Monte Carlo forecast controls
+
+Monte Carlo creates synthetic investment paths by resampling historical return blocks. This gives a wider robustness test than historical rolling windows alone.
+
+**Monte Carlo paths**: number of simulated futures. Use 3,000 to 5,000 for normal use. Higher is smoother but slower.
+
+**Bootstrap block length**:
+
+| Block length | Meaning |
+|---|---|
+| 1 month | Very random; destroys most regime clustering |
+| 6 months | Moderate randomness |
+| 12 months | Good default; keeps annual market behaviour |
+| 24+ months | More regime persistence; useful for stress testing |
+
+**Monte Carlo seed** makes results repeatable. Keep the same seed when comparing assumptions; change it if you want a fresh random sample.
+
+---
+
+### 7) Monte Carlo sample pool
+
+This controls which historical months are allowed into the Monte Carlo engine.
+
+| Pool | Use case |
+|---|---|
+| Selected active sample | Default; uses the sample implied by your start-regime choice |
+| Modern era only | Focuses on 1990+ market structure |
+| Post-1973 only | Focuses on post-gold-standard fiat-currency history |
+| High-inflation months only | Inflation stress test |
+| Stress/crisis months only | Pessimistic market stress test |
+
+Do not use one pool only. A robust plan should be tested under at least **Selected active sample**, **Post-1973**, **High-inflation**, and **Stress/crisis**.
+
+---
+
+### 8) Forecast return anchor
+
+This is the most important forecasting control.
+
+| Mode | What it does | When to use |
+|---|---|---|
+| Historical bootstrap, no return anchor | Uses sampled historical returns as-is | Baseline historical stress test |
+| Forward-return adjusted | Shifts paths so their average return matches your expected return | Planning with conservative/base/optimistic assumptions |
+| CAPE / valuation-adjusted | Reduces or increases expected return based on current CAPE vs fair CAPE | When market valuation is materially high or low |
+
+For planning, run at least three forward-return cases:
+
+| Scenario | Expected nominal return |
+|---|---:|
+| Conservative | 4% to 5% |
+| Base | 6% to 7% |
+| Optimistic | 8% to 9% |
+
+---
+
+### 9) CAPE / valuation settings
+
+CAPE mode starts from the active historical annualised return and applies a valuation adjustment:
+
+- If **current CAPE > fair CAPE**, the model reduces expected return.
+- If **current CAPE < fair CAPE**, the model increases expected return.
+- **CAPE sensitivity** controls how strongly the adjustment is applied.
+
+Typical inputs to test:
+
+| Input | Starting value |
+|---|---:|
+| Fair CAPE | 18 to 22 |
+| CAPE sensitivity | 0.04 to 0.08 |
+
+Because the current dataset does not yet embed historical CAPE directly, this is a transparent planning approximation rather than a fully valuation-weighted historical model.
+
+---
+
+### 10) How to decide whether your plan is robust
+
+A stronger plan usually has these characteristics:
+
+- Historical target-hit share is high.
+- Monte Carlo model-estimated share remains acceptable under conservative returns.
+- CPI-adjusted median is still enough, not just the nominal median.
+- Drawdown is psychologically tolerable.
+- The result is not destroyed by high-inflation or crisis-only stress pools.
+- The result still works with realistic tracking drag.
+
+A weaker plan usually only works when:
+
+- Expected return is optimistic.
+- Contributions never rise with inflation.
+- FX filter is OFF for GBP.
+- Tracking drag is set to zero.
+- Stress/crisis Monte Carlo fails badly.
+
+---
+
+### 11) Recommended robustness workflow
+
+Run these cases and compare the **CPI-adjusted median**, **P10**, **target share**, and **drawdown**:
+
+1. **Base historical**: selected sample, historical bootstrap, 12-month blocks.
+2. **Base forecast**: forward-return adjusted, 6% to 7% expected return.
+3. **Conservative forecast**: forward-return adjusted, 4% to 5% expected return.
+4. **High-inflation stress**: high-inflation pool, 12 to 24-month blocks.
+5. **Crisis stress**: stress/crisis pool, 12 to 24-month blocks.
+6. **Valuation stress**: CAPE mode with current CAPE above fair CAPE.
+
+If the plan survives the conservative and stress cases, the estimate is much more credible.
+        """)
+
 def make_summary_table(summary_df: pd.DataFrame, currency_symbol: str, target_wealth: float) -> pd.DataFrame:
     columns = ["years", "count", "real_count", "cpi_coverage_share", "total_contribution", "p05", "p10", "median", "mean", "p90", "p95", "max", "real_median", "wealth_multiple_median", "paid_in_annualised_median", "mwr_median", "prob_below_contribution", "prob_above_target", "fees_median", "max_drawdown_median", "worst_start", "worst_end", "best_start", "best_end"]
     table_df = summary_df[columns].copy()
@@ -1611,6 +1811,8 @@ def main() -> None:
         </div>
     </div>
     """, unsafe_allow_html=True)
+
+    render_how_to_use_guide()
 
     st.markdown('<div class="section-card"><div class="section-title"><h2>Study settings</h2></div><div class="section-subtitle">The app now uses only the latest embedded S&amp;P 500 dataset. Choose the economic regime you want the study to start from; the simulation then runs from that start year through the latest available month.</div>', unsafe_allow_html=True)
 
