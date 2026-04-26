@@ -144,6 +144,8 @@ def inject_css() -> None:
     st.markdown("""
     <style>
         :root {
+            --sidebar-width: 26rem;
+            --sidebar-width-mobile: 21rem;
             --bg: #050816;
             --bg-2: #0b1220;
             --panel: rgba(15, 23, 42, 0.86);
@@ -197,9 +199,10 @@ def inject_css() -> None:
             opacity: 1 !important;
             transform: translateX(0) !important;
             left: 0 !important;
-            min-width: 22rem !important;
-            width: 22rem !important;
-            max-width: 22rem !important;
+            min-width: var(--sidebar-width) !important;
+            width: var(--sidebar-width) !important;
+            max-width: var(--sidebar-width) !important;
+            flex: 0 0 var(--sidebar-width) !important;
             z-index: 999980 !important;
             pointer-events: auto !important;
         }
@@ -210,8 +213,8 @@ def inject_css() -> None:
             display: block !important;
             visibility: visible !important;
             opacity: 1 !important;
-            width: 22rem !important;
-            max-width: 22rem !important;
+            width: var(--sidebar-width) !important;
+            max-width: var(--sidebar-width) !important;
             transform: none !important;
             pointer-events: auto !important;
         }
@@ -242,16 +245,48 @@ def inject_css() -> None:
             section[data-testid="stSidebar"],
             div[data-testid="stSidebar"],
             aside[data-testid="stSidebar"] {
-                min-width: 20rem !important;
-                width: 20rem !important;
-                max-width: 20rem !important;
+                min-width: var(--sidebar-width-mobile) !important;
+                width: var(--sidebar-width-mobile) !important;
+                max-width: var(--sidebar-width-mobile) !important;
+                flex-basis: var(--sidebar-width-mobile) !important;
             }
             section[data-testid="stSidebar"] > div,
             div[data-testid="stSidebarContent"],
             [data-testid="stSidebarUserContent"] {
-                width: 20rem !important;
-                max-width: 20rem !important;
+                width: var(--sidebar-width-mobile) !important;
+                max-width: var(--sidebar-width-mobile) !important;
             }
+        }
+
+        /* Wider sidebar with safe text wrapping. This avoids manual page offsets,
+           so the main dashboard keeps Streamlit's native alignment. */
+        [data-testid="stSidebarUserContent"],
+        [data-testid="stSidebarUserContent"] *,
+        section[data-testid="stSidebar"] *,
+        div[data-testid="stSidebar"] * {
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] p,
+        section[data-testid="stSidebar"] span,
+        section[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] {
+            white-space: normal !important;
+            line-height: 1.35 !important;
+        }
+
+        section[data-testid="stSidebar"] [data-testid="stExpander"] summary p,
+        section[data-testid="stSidebar"] [data-testid="stExpander"] summary span {
+            white-space: normal !important;
+        }
+
+        section[data-testid="stSidebar"] .stNumberInput,
+        section[data-testid="stSidebar"] .stTextInput,
+        section[data-testid="stSidebar"] .stSelectbox,
+        section[data-testid="stSidebar"] .stSlider,
+        section[data-testid="stSidebar"] .stMultiSelect {
+            max-width: 100% !important;
         }
 
         .block-container {
@@ -540,7 +575,38 @@ def inject_css() -> None:
             .mini-grid {grid-template-columns: repeat(2, minmax(180px, 1fr));}
         }
         @media (max-width: 760px) {
-            .block-container {padding-left: .8rem; padding-right: .8rem;}
+            /* Wider sidebar with safe text wrapping. This avoids manual page offsets,
+           so the main dashboard keeps Streamlit's native alignment. */
+        [data-testid="stSidebarUserContent"],
+        [data-testid="stSidebarUserContent"] *,
+        section[data-testid="stSidebar"] *,
+        div[data-testid="stSidebar"] * {
+            overflow-wrap: anywhere;
+            word-break: normal;
+        }
+
+        section[data-testid="stSidebar"] label,
+        section[data-testid="stSidebar"] p,
+        section[data-testid="stSidebar"] span,
+        section[data-testid="stSidebar"] div[data-testid="stMarkdownContainer"] {
+            white-space: normal !important;
+            line-height: 1.35 !important;
+        }
+
+        section[data-testid="stSidebar"] [data-testid="stExpander"] summary p,
+        section[data-testid="stSidebar"] [data-testid="stExpander"] summary span {
+            white-space: normal !important;
+        }
+
+        section[data-testid="stSidebar"] .stNumberInput,
+        section[data-testid="stSidebar"] .stTextInput,
+        section[data-testid="stSidebar"] .stSelectbox,
+        section[data-testid="stSidebar"] .stSlider,
+        section[data-testid="stSidebar"] .stMultiSelect {
+            max-width: 100% !important;
+        }
+
+        .block-container {padding-left: .8rem; padding-right: .8rem;}
             .hero {padding: 1.25rem; border-radius: 24px;}
             .kpi-grid {grid-template-columns: 1fr;}
             .mini-grid {grid-template-columns: 1fr;}
