@@ -10,7 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-st.set_page_config(page_title="S&P 500 Investment analysis by Dimis", page_icon="📈", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="S&P 500 Investment analysis by Dimi", page_icon="📈", layout="wide", initial_sidebar_state="expanded")
 
 EMBEDDED_DATASETS = {}  # Old MAT dataset options removed; app uses only the latest embedded 1871-2026 text dataset.
 DEFAULT_DATASET = "snp1871 updated to 2026-03 - text"
@@ -2378,7 +2378,7 @@ def main() -> None:
     <div class="hero">
         <div class="hero-row">
             <div>
-                <h1>S&amp;P 500 Investment analysis by Dimi</h1>
+                <h1>S&amp;P 500 Investment analysis by Dimis</h1>
                 <p>Explore long-term investing outcomes with rolling historical windows, local-currency conversion, fees, drawdown, inflation and target-hit diagnostics.</p>
                 <div class="hero-badges">
                     <span class="badge">Rolling history</span>
