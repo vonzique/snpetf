@@ -1089,14 +1089,18 @@ def summarise_distribution(final_values: pd.Series, real_final_values: pd.Series
         "min": float(final_values.min()),
         "p05": float(final_values.quantile(0.05)),
         "p10": p10_final,
+        "p25": float(final_values.quantile(0.25)),
         "median": median_final,
         "mean": float(final_values.mean()),
+        "p75": float(final_values.quantile(0.75)),
         "p90": p90_final,
         "p95": float(final_values.quantile(0.95)),
         "max": float(final_values.max()),
         "std": float(final_values.std(ddof=1)),
         "real_p10": float(real_values.quantile(0.10)) if real_count else float("nan"),
+        "real_p25": float(real_values.quantile(0.25)) if real_count else float("nan"),
         "real_median": float(real_values.median()) if real_count else float("nan"),
+        "real_p75": float(real_values.quantile(0.75)) if real_count else float("nan"),
         "real_p90": float(real_values.quantile(0.90)) if real_count else float("nan"),
         "wealth_multiple_median": float(wealth_multiple.median()),
         "paid_in_annualised_median": float(paid_in_annualised.median()),
@@ -1287,14 +1291,18 @@ def summarise_monte_carlo_distribution(
         "min": float(final_values.min()),
         "p05": float(final_values.quantile(0.05)),
         "p10": p10_final,
+        "p25": float(final_values.quantile(0.25)),
         "median": median_final,
         "mean": float(final_values.mean()),
+        "p75": float(final_values.quantile(0.75)),
         "p90": p90_final,
         "p95": float(final_values.quantile(0.95)),
         "max": float(final_values.max()),
         "std": float(final_values.std(ddof=1)),
         "real_p10": float(real_values.quantile(0.10)) if real_count else float("nan"),
+        "real_p25": float(real_values.quantile(0.25)) if real_count else float("nan"),
         "real_median": float(real_values.median()) if real_count else float("nan"),
+        "real_p75": float(real_values.quantile(0.75)) if real_count else float("nan"),
         "real_p90": float(real_values.quantile(0.90)) if real_count else float("nan"),
         "wealth_multiple_median": float(wealth_multiple.median()),
         "paid_in_annualised_median": float(paid_in_annualised.median()),
@@ -1727,25 +1735,43 @@ def build_distribution_chart(result: HistoricalSimulationResult, currency_symbol
 
 def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str) -> go.Figure:
     fig = go.Figure()
+
+    # Outer uncertainty band: P10-P90
     fig.add_trace(go.Scatter(
         x=summary_df["years"], y=summary_df["p10"], mode="lines",
         line=dict(width=0), hoverinfo="skip", showlegend=False,
     ))
     fig.add_trace(go.Scatter(
         x=summary_df["years"], y=summary_df["p90"], mode="lines",
-        line=dict(width=0), fill="tonexty", fillcolor="rgba(56,189,248,0.16)",
-        name="10th-90th percentile",
-        hovertemplate=f"Years=%{{x}}<br>90th percentile={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        line=dict(width=0), fill="tonexty", fillcolor="rgba(56,189,248,0.13)",
+        name="P10-P90 range",
+        hovertemplate=f"Years=%{{x}}<br>P90={currency_symbol}%{{y:,.0f}}<extra></extra>",
     ))
+
+    # Inner uncertainty band: P25-P75 where available.
+    if {"p25", "p75"}.issubset(summary_df.columns):
+        fig.add_trace(go.Scatter(
+            x=summary_df["years"], y=summary_df["p25"], mode="lines",
+            line=dict(width=0), hoverinfo="skip", showlegend=False,
+        ))
+        fig.add_trace(go.Scatter(
+            x=summary_df["years"], y=summary_df["p75"], mode="lines",
+            line=dict(width=0), fill="tonexty", fillcolor="rgba(167,139,250,0.18)",
+            name="P25-P75 range",
+            hovertemplate=f"Years=%{{x}}<br>P75={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        ))
+
     fig.add_trace(go.Scatter(
-        x=summary_df["years"], y=summary_df["median"], mode="lines",
+        x=summary_df["years"], y=summary_df["median"], mode="lines+markers",
         name="Median nominal", line=dict(shape="spline", smoothing=1.0, width=4, color="#38bdf8"),
+        marker=dict(size=5, color="#38bdf8"),
         hovertemplate=f"Years=%{{x}}<br>Median={currency_symbol}%{{y:,.0f}}<extra></extra>",
     ))
     fig.add_trace(go.Scatter(
         x=summary_df["years"], y=summary_df["mean"], mode="lines",
-        name="Mean nominal", line=dict(shape="spline", smoothing=1.0, width=3, dash="dot", color="#34d399"),
+        name="Mean nominal", line=dict(shape="spline", smoothing=1.0, width=2.6, dash="dot", color="#34d399"),
         hovertemplate=f"Years=%{{x}}<br>Mean={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        visible="legendonly",
     ))
     if "real_median" in summary_df.columns and summary_df["real_median"].notna().any():
         fig.add_trace(go.Scatter(
@@ -1757,12 +1783,10 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str) -> go.Fi
     fig.update_yaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
     fig.update_layout(
         hovermode="x unified",
-        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
-        margin=dict(l=72, r=28, t=64, b=98),
+        legend=dict(orientation="h", yanchor="top", y=-0.16, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
+        margin=dict(l=72, r=28, t=68, b=100),
     )
-    return _chart_layout(fig, "Ending wealth across horizons", height=610)
-
-
+    return _chart_layout(fig, "Ending wealth across horizons", height=720)
 
 
 
@@ -1791,37 +1815,88 @@ def render_monte_carlo_metric_cards(mc_result: MonteCarloSimulationResult, curre
     st.markdown(f'<div class="mini-grid">{mini_html}</div>', unsafe_allow_html=True)
 
 
-def build_monte_carlo_comparison_chart(historical_result: HistoricalSimulationResult, mc_result: MonteCarloSimulationResult, currency_symbol: str, target_wealth: float) -> go.Figure:
+def build_monte_carlo_comparison_chart(
+    historical_result: HistoricalSimulationResult,
+    mc_result: MonteCarloSimulationResult,
+    currency_symbol: str,
+    target_wealth: float,
+    view: str = "Exceedance probability",
+) -> go.Figure:
+    view_key = str(view).strip().lower()
+    hist_values = pd.Series(historical_result.final_values, dtype="float64").dropna()
+    mc_values = pd.Series(mc_result.final_values, dtype="float64").dropna()
     fig = go.Figure()
-    fig.add_trace(go.Histogram(
-        x=historical_result.final_values,
-        nbinsx=45,
-        name="Historical rolling windows",
-        marker_color="#38bdf8",
-        opacity=0.58,
-        hovertemplate=f"Historical final wealth={currency_symbol}%{{x:,.0f}}<br>Windows=%{{y}}<extra></extra>",
-    ))
-    fig.add_trace(go.Histogram(
-        x=mc_result.final_values,
-        nbinsx=45,
-        name="Monte Carlo block bootstrap",
-        marker_color="#a78bfa",
-        opacity=0.50,
-        hovertemplate=f"Monte Carlo final wealth={currency_symbol}%{{x:,.0f}}<br>Paths=%{{y}}<extra></extra>",
-    ))
-    fig.add_vline(x=float(historical_result.stats["median"]), line_dash="dash", line_width=2, line_color="#38bdf8", annotation_text="Historical median", annotation_position="top left", annotation_font_color="#bae6fd")
-    fig.add_vline(x=float(mc_result.stats["median"]), line_dash="dash", line_width=2, line_color="#a78bfa", annotation_text="MC median", annotation_position="top right", annotation_font_color="#ddd6fe")
-    if target_wealth > 0:
-        fig.add_vline(x=float(target_wealth), line_dash="solid", line_width=2, line_color="#fbbf24", annotation_text="Target", annotation_position="top", annotation_font_color="#fde68a")
+
+    if view_key.startswith("exceed"):
+        def exceedance(values: pd.Series) -> tuple[np.ndarray, np.ndarray]:
+            arr = np.sort(values.to_numpy(dtype=float))
+            arr = arr[np.isfinite(arr)]
+            if arr.size == 0:
+                return arr, arr
+            probability = (arr.size - np.arange(arr.size)) / arr.size
+            return arr, probability
+
+        hx, hy = exceedance(hist_values)
+        mx, my = exceedance(mc_values)
+        fig.add_trace(go.Scatter(
+            x=hx, y=hy, mode="lines", name="Historical rolling windows",
+            line=dict(color="#38bdf8", width=3),
+            hovertemplate=f"Final wealth ≥ {currency_symbol}%{{x:,.0f}}<br>Historical chance=%{{y:.1%}}<extra></extra>",
+        ))
+        fig.add_trace(go.Scatter(
+            x=mx, y=my, mode="lines", name="Monte Carlo block bootstrap",
+            line=dict(color="#a78bfa", width=3, dash="dash"),
+            hovertemplate=f"Final wealth ≥ {currency_symbol}%{{x:,.0f}}<br>MC chance=%{{y:.1%}}<extra></extra>",
+        ))
+        if target_wealth > 0:
+            fig.add_vline(x=float(target_wealth), line_dash="solid", line_width=2, line_color="#fbbf24", annotation_text="Target", annotation_position="top", annotation_font_color="#fde68a")
+        fig.update_xaxes(title_text=f"Final wealth threshold ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
+        fig.update_yaxes(title_text="Probability of ending above threshold", tickformat=".0%", range=[0, 1.02])
+        title = f"Historical vs Monte Carlo exceedance · {historical_result.years} years"
+
+    elif view_key.startswith("box"):
+        fig.add_trace(go.Box(
+            y=hist_values, name="Historical rolling windows", boxpoints="outliers",
+            marker_color="#38bdf8", line_color="#38bdf8",
+            hovertemplate=f"Historical={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        ))
+        fig.add_trace(go.Box(
+            y=mc_values, name="Monte Carlo block bootstrap", boxpoints="outliers",
+            marker_color="#a78bfa", line_color="#a78bfa",
+            hovertemplate=f"Monte Carlo={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        ))
+        if target_wealth > 0:
+            fig.add_hline(y=float(target_wealth), line_dash="solid", line_width=2, line_color="#fbbf24", annotation_text="Target", annotation_position="top right", annotation_font_color="#fde68a")
+        fig.update_xaxes(title_text="Scenario source")
+        fig.update_yaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
+        title = f"Historical vs Monte Carlo summary · {historical_result.years} years"
+
+    else:
+        fig.add_trace(go.Histogram(
+            x=hist_values, nbinsx=45, name="Historical rolling windows",
+            marker_color="#38bdf8", opacity=0.58,
+            hovertemplate=f"Historical final wealth={currency_symbol}%{{x:,.0f}}<br>Windows=%{{y}}<extra></extra>",
+        ))
+        fig.add_trace(go.Histogram(
+            x=mc_values, nbinsx=45, name="Monte Carlo block bootstrap",
+            marker_color="#a78bfa", opacity=0.50,
+            hovertemplate=f"Monte Carlo final wealth={currency_symbol}%{{x:,.0f}}<br>Paths=%{{y}}<extra></extra>",
+        ))
+        fig.add_vline(x=float(historical_result.stats["median"]), line_dash="dash", line_width=2, line_color="#38bdf8", annotation_text="Historical median", annotation_position="top left", annotation_font_color="#bae6fd")
+        fig.add_vline(x=float(mc_result.stats["median"]), line_dash="dash", line_width=2, line_color="#a78bfa", annotation_text="MC median", annotation_position="top right", annotation_font_color="#ddd6fe")
+        if target_wealth > 0:
+            fig.add_vline(x=float(target_wealth), line_dash="solid", line_width=2, line_color="#fbbf24", annotation_text="Target", annotation_position="top", annotation_font_color="#fde68a")
+        fig.update_layout(barmode="overlay")
+        fig.update_xaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
+        fig.update_yaxes(title_text="Count")
+        title = f"Historical vs Monte Carlo distribution · {historical_result.years} years"
+
     fig.update_layout(
-        barmode="overlay",
-        hovermode="x unified",
-        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
-        margin=dict(l=72, r=28, t=64, b=98),
+        hovermode="x unified" if not view_key.startswith("box") else "closest",
+        legend=dict(orientation="h", yanchor="top", y=-0.16, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
+        margin=dict(l=72, r=28, t=68, b=100),
     )
-    fig.update_xaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
-    fig.update_yaxes(title_text="Count")
-    return _chart_layout(fig, f"Historical vs Monte Carlo · {historical_result.years} years", height=570)
+    return _chart_layout(fig, title, height=660)
 
 
 def build_calibration_chart(calibration_df: pd.DataFrame, currency_symbol: str) -> go.Figure:
@@ -2430,21 +2505,31 @@ def main() -> None:
     summary_df = pd.DataFrame([{"years": r.years, **r.stats.to_dict()} for r in horizon_results])
     primary = next(r for r in horizon_results if r.years == int(featured_horizon))
 
-    st.markdown('<div class="section-title"><h2>Dashboard overview</h2></div><div class="section-subtitle">Large figures are now rendered in custom responsive cards, so values should not be clipped.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title"><h2>Dashboard overview</h2></div>'
+        '<div class="section-subtitle">The page now opens with the key planning charts first. Secondary diagnostics are tucked into expandable sections below.</div>',
+        unsafe_allow_html=True,
+    )
     render_metric_cards(primary.stats, currency_symbol, target_wealth)
 
-    left, right = st.columns([1.0, 1.22])
-    with left:
-        st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title"><h2>Key results</h2></div>'
+        '<div class="section-subtitle">Main planning view: final wealth across the selected horizons.</div>',
+        unsafe_allow_html=True,
+    )
+    st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
+    st.plotly_chart(build_horizon_chart(summary_df, currency_symbol), width="stretch", theme=None)
+    st.markdown('</div>', unsafe_allow_html=True)
+
+    with st.expander("Detailed historical distribution for the featured horizon", expanded=False):
         st.plotly_chart(build_distribution_chart(primary, currency_symbol, target_wealth), width="stretch", theme=None)
-        st.markdown('</div>', unsafe_allow_html=True)
-    with right:
-        st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
-        st.plotly_chart(build_horizon_chart(summary_df, currency_symbol), width="stretch", theme=None)
-        st.markdown('</div>', unsafe_allow_html=True)
 
     if enable_monte_carlo:
-        st.markdown('<div class="section-title"><h2>Forecast-conditioned Monte Carlo study</h2></div><div class="section-subtitle">Synthetic paths for the featured horizon. The simulation resamples contiguous historical blocks and can optionally apply forward-return, CAPE/valuation, contribution-growth and tracking-drag assumptions.</div>', unsafe_allow_html=True)
+        st.markdown(
+            '<div class="section-title"><h2>Historical vs Monte Carlo</h2></div>'
+            '<div class="section-subtitle">Compare realised rolling historical windows with synthetic block-bootstrap paths for the featured horizon.</div>',
+            unsafe_allow_html=True,
+        )
         try:
             mc_result = simulate_monte_carlo_block_bootstrap(
                 returns_df,
@@ -2473,31 +2558,45 @@ def main() -> None:
             st.warning(f"Monte Carlo could not run: {exc}")
         else:
             render_monte_carlo_metric_cards(mc_result, currency_symbol, target_wealth)
+            mc_chart_view = st.radio(
+                "Historical vs Monte Carlo chart view",
+                ["Exceedance probability", "Distribution overlay", "Box summary"],
+                index=0,
+                horizontal=True,
+                help="Exceedance probability is often the cleanest planning view because it shows the chance of ending above each wealth level.",
+            )
             st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
-            st.plotly_chart(build_monte_carlo_comparison_chart(primary, mc_result, currency_symbol, target_wealth), width="stretch", theme=None)
-            st.markdown('</div>', unsafe_allow_html=True)
-            st.markdown('<div class="section-card"><div class="section-title"><h2>Historical vs Monte Carlo comparison</h2></div><div class="section-subtitle">Monte Carlo results are not exact future probabilities. They are stress-tested synthetic paths drawn from the selected historical return sample.</div>', unsafe_allow_html=True)
-            mc_compare_df = make_monte_carlo_comparison_table(primary.stats, mc_result.stats, currency_symbol, target_wealth)
-            st.dataframe(mc_compare_df, width="stretch", hide_index=True, height=485)
-            mc_export = pd.DataFrame({
-                "simulation": np.arange(1, len(mc_result.final_values) + 1),
-                "final_value": mc_result.final_values,
-                "total_fees": mc_result.total_fees,
-                "max_drawdown": mc_result.max_drawdowns,
-                "real_final_value_cpi_adjusted": mc_result.real_final_values,
-            })
-            st.download_button(
-                "Download Monte Carlo paths CSV",
-                mc_export.to_csv(index=False).encode("utf-8"),
-                file_name="monte_carlo_block_bootstrap_paths.csv",
-                mime="text/csv",
+            st.plotly_chart(
+                build_monte_carlo_comparison_chart(primary, mc_result, currency_symbol, target_wealth, mc_chart_view),
+                width="stretch",
+                theme=None,
             )
             st.markdown('</div>', unsafe_allow_html=True)
+
+            with st.expander("Monte Carlo comparison table and downloads", expanded=False):
+                st.markdown(
+                    "Monte Carlo results are not exact future probabilities. They are stress-tested synthetic paths drawn from the selected historical return sample."
+                )
+                mc_compare_df = make_monte_carlo_comparison_table(primary.stats, mc_result.stats, currency_symbol, target_wealth)
+                st.dataframe(mc_compare_df, width="stretch", hide_index=True, height=485)
+                mc_export = pd.DataFrame({
+                    "simulation": np.arange(1, len(mc_result.final_values) + 1),
+                    "final_value": mc_result.final_values,
+                    "total_fees": mc_result.total_fees,
+                    "max_drawdown": mc_result.max_drawdowns,
+                    "real_final_value_cpi_adjusted": mc_result.real_final_values,
+                })
+                st.download_button(
+                    "Download Monte Carlo paths CSV",
+                    mc_export.to_csv(index=False).encode("utf-8"),
+                    file_name="monte_carlo_block_bootstrap_paths.csv",
+                    mime="text/csv",
+                )
 
     if run_calibration:
         st.markdown(
             '<div class="section-title"><h2>Forecast calibration / out-of-sample backtest</h2></div>'
-            '<div class="section-subtitle">Calibration controls are in the sidebar. The results below compare forecast ranges with realised future paths.</div>',
+            '<div class="section-subtitle">Calibration controls are in the sidebar. The compact cards remain visible; the detailed chart and table are expandable.</div>',
             unsafe_allow_html=True,
         )
         try:
@@ -2537,21 +2636,24 @@ def main() -> None:
             cb.metric("P10-P90 coverage", fmt_percent(calibration_stats["p10_p90_coverage"]))
             cc.metric("Actual above median", fmt_percent(calibration_stats["actual_above_median_rate"]))
             cd.metric("Median bias", fmt_percent(calibration_stats["median_bias"]))
-            st.plotly_chart(build_calibration_chart(calibration_df, currency_symbol), width="stretch", theme=None)
-            display_cal = calibration_df.copy()
-            for col in ["forecast_date", "train_start", "train_end", "actual_end"]:
-                display_cal[col] = pd.to_datetime(display_cal[col]).dt.strftime("%Y-%m")
-            for col in ["forecast_p10", "forecast_median", "forecast_p90", "actual_final"]:
-                display_cal[col] = display_cal[col].map(lambda x: fmt_currency(x, currency_symbol))
-            display_cal["actual_vs_median_pct"] = display_cal["actual_vs_median_pct"].map(fmt_percent)
-            display_cal["target_model_share"] = display_cal["target_model_share"].map(fmt_percent)
-            st.dataframe(display_cal, width="stretch", hide_index=True, height=360)
-            st.download_button(
-                "Download calibration CSV",
-                calibration_df.to_csv(index=False).encode("utf-8"),
-                file_name="forecast_calibration_backtest.csv",
-                mime="text/csv",
-            )
+            with st.expander("Show calibration chart and table", expanded=False):
+                st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
+                st.plotly_chart(build_calibration_chart(calibration_df, currency_symbol), width="stretch", theme=None)
+                st.markdown('</div>', unsafe_allow_html=True)
+                display_cal = calibration_df.copy()
+                for col in ["forecast_date", "train_start", "train_end", "actual_end"]:
+                    display_cal[col] = pd.to_datetime(display_cal[col]).dt.strftime("%Y-%m")
+                for col in ["forecast_p10", "forecast_median", "forecast_p90", "actual_final"]:
+                    display_cal[col] = display_cal[col].map(lambda x: fmt_currency(x, currency_symbol))
+                display_cal["actual_vs_median_pct"] = display_cal["actual_vs_median_pct"].map(fmt_percent)
+                display_cal["target_model_share"] = display_cal["target_model_share"].map(fmt_percent)
+                st.dataframe(display_cal, width="stretch", hide_index=True, height=360)
+                st.download_button(
+                    "Download calibration CSV",
+                    calibration_df.to_csv(index=False).encode("utf-8"),
+                    file_name="forecast_calibration_backtest.csv",
+                    mime="text/csv",
+                )
 
     render_fx_diagnostics(fx_diag, only_full_fx_windows)
     render_cpi_diagnostics(cpi_diag)
@@ -2560,15 +2662,16 @@ def main() -> None:
     st.caption(f"Selected start period: {regime_meta['display']}. This option controls the sample start only; all data from that year through the latest month is included.")
     render_methodology_notes(contribution_timing_label, only_full_fx_windows, target_wealth)
 
-    st.markdown('<div class="section-card"><div class="section-title"><h2>Summary table</h2></div><div class="section-subtitle">Scrollable detailed statistics for every horizon in the selected range.</div>', unsafe_allow_html=True)
-    table_df = make_summary_table(summary_df, currency_symbol, target_wealth)
-    st.dataframe(table_df, width="stretch", hide_index=True, height=430)
-    st.markdown('</div>', unsafe_allow_html=True)
+    with st.expander("Summary table and downloads", expanded=False):
+        st.markdown("Scrollable detailed statistics for every horizon in the selected range.")
+        table_df = make_summary_table(summary_df, currency_symbol, target_wealth)
+        st.dataframe(table_df, width="stretch", hide_index=True, height=430)
 
-    csv_df = summary_df.copy()
-    for col in ["worst_start", "worst_end", "best_start", "best_end"]:
-        csv_df[col] = pd.to_datetime(csv_df[col]).dt.strftime("%Y-%m-%d")
-    st.download_button("Download summary CSV", csv_df.to_csv(index=False).encode("utf-8"), file_name="historical_summary_statistics_robust.csv", mime="text/csv")
+        csv_df = summary_df.copy()
+        for col in ["worst_start", "worst_end", "best_start", "best_end"]:
+            csv_df[col] = pd.to_datetime(csv_df[col]).dt.strftime("%Y-%m-%d")
+        st.download_button("Download summary CSV", csv_df.to_csv(index=False).encode("utf-8"), file_name="historical_summary_statistics_robust.csv", mime="text/csv")
+
     st.caption(f"Dataset: latest embedded S&P 500 data to {base_returns_df['date'].max().strftime('%Y-%m')}. Start period: {regime_meta['display']}. Output currency: {currency_label}. Horizon range shown: {int(year_range[0])} to {int(year_range[1])} years. Results are historical rolling scenarios plus optional block-bootstrap Monte Carlo stress tests, not forecasts or financial advice.")
 
 
