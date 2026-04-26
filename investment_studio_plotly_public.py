@@ -173,10 +173,10 @@ def inject_css() -> None:
             color: var(--text) !important;
         }
 
-        /* Sidebar safety fix.
-           Keep Streamlit controls available, but more importantly force the
-           sidebar itself to remain visible even if the browser has remembered
-           a previous collapsed state. */
+        /* Sidebar/layout safety fix.
+           Use Streamlit's native sidebar layout so the main dashboard is not
+           manually pushed out of alignment. The header stays transparent but
+           active, so the sidebar collapse/expand control remains usable. */
         header[data-testid="stHeader"] {
             display: block !important;
             height: 2.75rem !important;
@@ -189,79 +189,17 @@ def inject_css() -> None:
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
 
-        section[data-testid="stSidebar"],
-        div[data-testid="stSidebar"],
-        aside[data-testid="stSidebar"] {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            transform: translateX(0) !important;
-            left: 0 !important;
-            min-width: 23rem !important;
-            width: 23rem !important;
-            max-width: 23rem !important;
-            z-index: 999980 !important;
-            pointer-events: auto !important;
-        }
-
-        section[data-testid="stSidebar"] > div,
-        div[data-testid="stSidebarContent"],
-        [data-testid="stSidebarUserContent"] {
-            display: block !important;
-            visibility: visible !important;
-            opacity: 1 !important;
-            width: 23rem !important;
-            max-width: 23rem !important;
-            transform: none !important;
-            pointer-events: auto !important;
-        }
-
-        /* Streamlit has used different test ids across versions. Keep both
-           possible collapsed controls visible as a fallback. */
         [data-testid="collapsedControl"],
         [data-testid="stSidebarCollapsedControl"] {
             display: flex !important;
             visibility: visible !important;
             opacity: 1 !important;
-            position: fixed !important;
-            top: .65rem !important;
-            left: .65rem !important;
             z-index: 1000000 !important;
-            background: rgba(15, 23, 42, .96) !important;
-            border: 1px solid rgba(125, 211, 252, .45) !important;
-            border-radius: 999px !important;
-            box-shadow: 0 10px 32px rgba(0,0,0,.42) !important;
-        }
-        [data-testid="collapsedControl"] button,
-        [data-testid="stSidebarCollapsedControl"] button {
-            color: #f8fafc !important;
         }
 
-        /* If the app was loaded while the sidebar was collapsed, Streamlit can
-           leave the main content flush-left. This margin prevents overlap. */
-        @media (min-width: 900px) {
-            div[data-testid="stAppViewContainer"] > .main,
-            section.main,
-            .stMain {
-                margin-left: 23rem !important;
-            }
-        }
-
-        @media (max-width: 899px) {
-            section[data-testid="stSidebar"],
-            div[data-testid="stSidebar"],
-            aside[data-testid="stSidebar"] {
-                min-width: 20rem !important;
-                width: 20rem !important;
-                max-width: 20rem !important;
-            }
-            section[data-testid="stSidebar"] > div,
-            div[data-testid="stSidebarContent"],
-            [data-testid="stSidebarUserContent"] {
-                width: 20rem !important;
-                max-width: 20rem !important;
-            }
-        }
+        /* Do not force sidebar width or add a manual left margin: Streamlit
+           already reserves the sidebar area. Forcing both is what caused the
+           dashboard to appear displaced and misaligned. */
 
         .block-container {
             padding-top: 1.15rem;
