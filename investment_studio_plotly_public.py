@@ -8,7 +8,7 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import streamlit as st
+import streamlit as stF
 
 st.set_page_config(page_title="S&P 500 Investment analysis by Dimi", page_icon="📈", layout="wide")
 
@@ -2237,14 +2237,14 @@ def main() -> None:
         st.error("Not enough data is available for a 2-year rolling study with the current filters.")
         st.stop()
 
-    default_min = min(30, max_possible_years)
-    default_max = min(40, max_possible_years)
+    default_min = min(8, max_possible_years)
+    default_max = min(33, max_possible_years)
     if default_min > default_max:
         default_min = max(2, default_max)
 
     with st.sidebar.expander("3) Investment inputs", expanded=True):
-        initial_investment = st.number_input(f"Initial investment ({currency_symbol})", min_value=0.0, value=75000.0, step=5000.0)
-        monthly_contribution = st.number_input(f"Monthly contribution ({currency_symbol})", min_value=0.0, value=0.0, step=100.0)
+        initial_investment = st.number_input(f"Initial investment ({currency_symbol})", min_value=0.0, value=10000.0, step=5000.0)
+        monthly_contribution = st.number_input(f"Monthly contribution ({currency_symbol})", min_value=0.0, value=100.0, step=100.0)
         year_range = st.slider(
             "Investment horizon range (years)",
             min_value=2,
