@@ -1760,7 +1760,7 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str) -> go.Fi
         legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
         margin=dict(l=72, r=28, t=64, b=98),
     )
-    return _chart_layout(fig, "Ending wealth across horizons", height=610)
+    return _chart_layout(fig, "Ending wealth across horizons", height=600)
 
 
 
@@ -1821,7 +1821,7 @@ def build_monte_carlo_comparison_chart(historical_result: HistoricalSimulationRe
     )
     fig.update_xaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
     fig.update_yaxes(title_text="Count")
-    return _chart_layout(fig, f"Historical vs Monte Carlo · {historical_result.years} years", height=570)
+    return _chart_layout(fig, f"Historical vs Monte Carlo · {historical_result.years} years", height=600)
 
 
 def build_calibration_chart(calibration_df: pd.DataFrame, currency_symbol: str) -> go.Figure:
@@ -2462,10 +2462,10 @@ def main() -> None:
         except ValueError as exc:
             mc_warning = f"Monte Carlo could not run: {exc}"
 
-    st.markdown('<div class="section-title"><h2>Dashboard overview</h2></div><div class="section-subtitle">The Historical vs Monte Carlo chart is now placed in the main dashboard position, with the ending wealth distribution moved into the Monte Carlo section below.</div>', unsafe_allow_html=True)
+    st.markdown('<div class="section-title"><h2>Dashboard overview</h2></div><div class="section-subtitle">Key graphs are shown side by side: Historical vs Monte Carlo on the left and Ending wealth across horizons on the right.</div>', unsafe_allow_html=True)
     render_metric_cards(primary.stats, currency_symbol, target_wealth)
 
-    left, right = st.columns([1.0, 1.22])
+    left, right = st.columns([1.0, 1.0])
     with left:
         st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
         if mc_result is not None:
