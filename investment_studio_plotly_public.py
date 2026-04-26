@@ -2373,7 +2373,7 @@ def main() -> None:
         if cal_horizon_default < cal_horizon_min:
             cal_horizon_default = cal_horizon_min
         calibration_horizon = st.slider("Calibration horizon (years)", min_value=cal_horizon_min, max_value=cal_horizon_max, value=cal_horizon_default, step=1)
-        calibration_step = st.selectbox("Test frequency", [1, 5, 10], index=1, format_func=lambda x: f"Every {x} year(s)")
+        calibration_step = st.selectbox("Test frequency", [1, 5, 10], index=0, format_func=lambda x: f"Every {x} year(s)")
         calibration_paths = st.number_input("Paths per test date", min_value=100, max_value=5000, value=750, step=100)
         active_start_year = int(returns_df["date"].min().year)
         active_end_year = int(returns_df["date"].max().year)
