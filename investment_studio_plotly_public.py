@@ -2171,7 +2171,7 @@ def main() -> None:
     <div class="hero">
         <div class="hero-row">
             <div>
-                <h1>S&amp;P 500 Investment Studio</h1>
+                <h1>S&amp;P 500 Investment analysis by Dimi</h1>
                 <p>Explore long-term investing outcomes with rolling historical windows, local-currency conversion, fees, drawdown, inflation and target-hit diagnostics.</p>
                 <div class="hero-badges">
                     <span class="badge">Rolling history</span>
