@@ -10,7 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-st.set_page_config(page_title="S&P 500 Investment analysis by Dimis", page_icon="📈", layout="wide")
+st.set_page_config(page_title="S&P 500 Investment analysis by Dimi", page_icon="📈", layout="wide", initial_sidebar_state="expanded")
 
 EMBEDDED_DATASETS = {}  # Old MAT dataset options removed; app uses only the latest embedded 1871-2026 text dataset.
 DEFAULT_DATASET = "snp1871 updated to 2026-03 - text"
@@ -173,8 +173,32 @@ def inject_css() -> None:
             color: var(--text) !important;
         }
 
-        header[data-testid="stHeader"] {display: none;}
-        div[data-testid="stToolbar"] {display: none;}
+        /* Keep Streamlit's header/collapsed-sidebar control available.
+           Do not use display:none here, otherwise if the sidebar is collapsed
+           the user may lose the visible control used to bring it back. */
+        header[data-testid="stHeader"] {
+            display: block !important;
+            height: 2.55rem !important;
+            background: transparent !important;
+            pointer-events: auto !important;
+        }
+        div[data-testid="stToolbar"] {visibility: hidden;}
+        [data-testid="collapsedControl"] {
+            display: flex !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            position: fixed !important;
+            top: .65rem !important;
+            left: .65rem !important;
+            z-index: 999999 !important;
+            background: rgba(15, 23, 42, .94) !important;
+            border: 1px solid rgba(125, 211, 252, .38) !important;
+            border-radius: 999px !important;
+            box-shadow: 0 10px 32px rgba(0,0,0,.42) !important;
+        }
+        [data-testid="collapsedControl"] button {
+            color: #f8fafc !important;
+        }
         #MainMenu {visibility: hidden;}
         footer {visibility: hidden;}
 
@@ -2390,7 +2414,18 @@ def main() -> None:
         )
         st.caption("Good signs: P10-P90 coverage near 80%, actual-above-median near 50%, and median bias near 0%.")
 
-
+    st.markdown(
+        f"""
+        <div class="section-card">
+            <div class="section-title"><h2>Active configuration</h2></div>
+            <div class="section-subtitle">
+                Settings are now controlled from the left sidebar. Current run: {regime_meta['display']} start, {currency_label},
+                {int(year_range[0])}–{int(year_range[1])} year horizons, featured horizon {int(featured_horizon)} years.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     try:
         horizon_results = [
