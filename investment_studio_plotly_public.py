@@ -1,571 +1,1159 @@
 from __future__ import annotations
 
 import io
+import math
 from dataclasses import dataclass
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Dict, List
 
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
+import plotly.express as px
 import streamlit as st
 
+try:
+    from scipy.io import loadmat
+except Exception:  # pragma: no cover
+    loadmat = None
+
 
 # ============================================================
-# Streamlit page setup
+# Streamlit setup
 # ============================================================
+
 st.set_page_config(
-    page_title="S&P 500 Investment analysis by Dimi",
+    page_title="CAPE Real/Nominal Investment Studio",
     page_icon="📈",
     layout="wide",
 )
 
-st.title("S&P 500 Investment analysis by Dimi")
-st.caption(
-    "Long-term S&P 500 projection tool using historical returns and optional CAPE-based real-return conditioning."
-)
+
+# ============================================================
+# Theory note used in the app
+# ============================================================
+
+THEORY_NOTE = """
+### CAPE and inflation: important interpretation
+
+Professor Robert Shiller's CAPE ratio is normally calculated using inflation-adjusted prices and inflation-adjusted 10-year average earnings.
+That means CAPE is primarily a **valuation metric** and is best calibrated against **future real returns**.
+
+So if the CAPE model says the expected return is **4% per year**, this should usually be interpreted as approximately **4% real annual return**, meaning after inflation.
+
+To estimate the absolute account value that you may see in the future, convert the real return into nominal return:
+
+$$
+1+r_{nominal} = (1+r_{real})(1+\pi)
+$$
+
+where:
+
+- $r_{real}$ = CAPE-implied real return
+- $\pi$ = inflation assumption
+- $r_{nominal}$ = expected absolute account growth rate
+
+Example: 4% real return and 3% inflation gives:
+
+$$
+(1.04)(1.03)-1 = 7.12\% \text{ nominal return}
+$$
+
+Therefore, the app keeps two separate layers:
+
+1. **CAPE calibration layer** → estimates real returns.
+2. **Projection layer** → converts real returns into nominal values using inflation.
+
+This avoids mixing real valuation signals with nominal wealth projections.
+"""
 
 
 # ============================================================
-# Core utility functions
-# ============================================================
-
-def annual_to_monthly_return(annual_return: float) -> float:
-    """Convert annual return to equivalent monthly compounded return."""
-    return (1.0 + annual_return) ** (1.0 / 12.0) - 1.0
-
-
-def monthly_to_annual_return(monthly_return: float) -> float:
-    """Convert monthly return to equivalent annual compounded return."""
-    return (1.0 + monthly_return) ** 12.0 - 1.0
-
-
-def real_to_nominal_return(real_return: float | np.ndarray, inflation_rate: float | np.ndarray) -> float | np.ndarray:
-    """
-    Convert real return to nominal return.
-
-    Formula:
-        (1 + nominal) = (1 + real) * (1 + inflation)
-    """
-    return (1.0 + real_return) * (1.0 + inflation_rate) - 1.0
-
-
-def nominal_to_real_return(nominal_return: float | np.ndarray, inflation_rate: float | np.ndarray) -> float | np.ndarray:
-    """
-    Convert nominal return to real return.
-
-    Formula:
-        (1 + real) = (1 + nominal) / (1 + inflation)
-    """
-    return (1.0 + nominal_return) / (1.0 + inflation_rate) - 1.0
-
-
-def compute_cape(
-    price: pd.Series,
-    earnings: pd.Series,
-    cpi: pd.Series,
-    window_months: int = 120,
-) -> pd.Series:
-    """
-    Compute Shiller-style CAPE using real price divided by 10-year average real earnings.
-
-    price: nominal price index
-    earnings: nominal earnings
-    cpi: CPI index
-    window_months: default 120 months = 10 years
-
-    CAPE is a valuation metric, so price and earnings are made real before comparison.
-    """
-    price = pd.to_numeric(price, errors="coerce")
-    earnings = pd.to_numeric(earnings, errors="coerce")
-    cpi = pd.to_numeric(cpi, errors="coerce")
-
-    cpi_base = cpi.dropna().iloc[-1]
-    real_price = price / cpi * cpi_base
-    real_earnings = earnings / cpi * cpi_base
-    avg_real_earnings = real_earnings.rolling(window_months, min_periods=window_months).mean()
-
-    cape = real_price / avg_real_earnings
-    return cape.replace([np.inf, -np.inf], np.nan)
-
-
-def estimate_real_return_from_cape(
-    cape: float,
-    alpha: float = 0.015,
-    beta: float = 1.10,
-    floor_return: float = -0.03,
-    cap_return: float = 0.12,
-) -> float:
-    """
-    Simple CAPE-to-real-return mapping.
-
-    This uses CAPE yield, 1/CAPE, as the predictor:
-        expected_real_return = alpha + beta * (1 / CAPE)
-
-    Default values are deliberately conservative placeholders.
-    For serious use, calibrate alpha/beta using historical out-of-sample data.
-    """
-    if cape <= 0 or np.isnan(cape):
-        return np.nan
-
-    expected = alpha + beta * (1.0 / cape)
-    return float(np.clip(expected, floor_return, cap_return))
-
-
-def safe_percent(x: float) -> str:
-    if pd.isna(x):
-        return "n/a"
-    return f"{100 * x:.2f}%"
-
-
-# ============================================================
-# Data loading
-# ============================================================
-
-def load_uploaded_csv(uploaded_file) -> pd.DataFrame:
-    """Load CSV and make best-effort date parsing."""
-    df = pd.read_csv(uploaded_file)
-    df.columns = [str(c).strip() for c in df.columns]
-
-    date_candidates = [
-        c for c in df.columns
-        if c.lower() in ["date", "time", "month", "year", "datetime"]
-        or "date" in c.lower()
-        or "time" in c.lower()
-    ]
-
-    if date_candidates:
-        date_col = date_candidates[0]
-        df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
-        df = df.sort_values(date_col).set_index(date_col)
-
-    return df
-
-
-def infer_return_series(df: pd.DataFrame) -> Optional[pd.Series]:
-    """Infer a monthly return series from common column names."""
-    lower_map = {c.lower(): c for c in df.columns}
-
-    for name in ["return", "returns", "monthly_return", "monthly returns", "real_return", "real return"]:
-        if name in lower_map:
-            s = pd.to_numeric(df[lower_map[name]], errors="coerce").dropna()
-            # If returns look like percentages, convert to decimals.
-            if s.abs().median() > 1:
-                s = s / 100.0
-            return s
-
-    for name in ["price", "close", "sp500", "s&p 500", "snp", "index"]:
-        if name in lower_map:
-            price = pd.to_numeric(df[lower_map[name]], errors="coerce").dropna()
-            return price.pct_change().dropna()
-
-    return None
-
-
-def infer_cape_series(df: pd.DataFrame) -> Optional[pd.Series]:
-    """Infer CAPE if directly available, otherwise compute if Price/Earnings/CPI exist."""
-    lower_map = {c.lower(): c for c in df.columns}
-
-    for name in ["cape", "shiller cape", "cape ratio", "cyclically adjusted pe"]:
-        if name in lower_map:
-            return pd.to_numeric(df[lower_map[name]], errors="coerce")
-
-    price_col = None
-    earnings_col = None
-    cpi_col = None
-
-    for candidate in ["price", "real price", "p", "sp500", "s&p 500", "index"]:
-        if candidate in lower_map:
-            price_col = lower_map[candidate]
-            break
-
-    for candidate in ["earnings", "e", "eps", "trailing earnings"]:
-        if candidate in lower_map:
-            earnings_col = lower_map[candidate]
-            break
-
-    for candidate in ["cpi", "consumer price index"]:
-        if candidate in lower_map:
-            cpi_col = lower_map[candidate]
-            break
-
-    if price_col and earnings_col and cpi_col:
-        return compute_cape(df[price_col], df[earnings_col], df[cpi_col])
-
-    return None
-
-
-# ============================================================
-# Simulation engine
+# Dataclasses
 # ============================================================
 
 @dataclass
-class SimulationConfig:
-    starting_wealth: float
-    monthly_contribution: float
-    years: int
-    n_sims: int
-    expected_real_return_annual: float
-    volatility_annual: float
-    expected_inflation_annual: float
-    projection_mode: str
-    seed: int
+class ColumnMap:
+    date: Optional[str] = None
+    price: Optional[str] = None
+    earnings: Optional[str] = None
+    dividend: Optional[str] = None
+    cpi: Optional[str] = None
+    cape: Optional[str] = None
+    total_return_index: Optional[str] = None
+    real_total_return_index: Optional[str] = None
 
 
-def simulate_monthly_wealth(config: SimulationConfig) -> pd.DataFrame:
-    """
-    Monte Carlo wealth simulation.
+@dataclass
+class CalibrationResult:
+    model_name: str
+    horizon_years: int
+    slope: float
+    intercept: float
+    r2: float
+    n_obs: int
+    x_name: str
+    y_name: str
+    fitted: pd.DataFrame
 
-    expected_real_return_annual is treated as a REAL return.
-    If projection_mode is 'Nominal values', inflation is added back before wealth projection.
-    """
-    rng = np.random.default_rng(config.seed)
-    n_months = config.years * 12
 
-    real_mu_monthly = annual_to_monthly_return(config.expected_real_return_annual)
-    real_sigma_monthly = config.volatility_annual / np.sqrt(12.0)
-    monthly_inflation = annual_to_monthly_return(config.expected_inflation_annual)
+# ============================================================
+# Utility functions
+# ============================================================
 
-    simulated_real_returns = rng.normal(
-        loc=real_mu_monthly,
-        scale=real_sigma_monthly,
-        size=(config.n_sims, n_months),
+
+def clean_col_name(col: object) -> str:
+    return str(col).strip().replace("\n", " ").replace("\r", " ")
+
+
+def normalise_col_key(col: object) -> str:
+    return (
+        clean_col_name(col)
+        .lower()
+        .replace(" ", "")
+        .replace("_", "")
+        .replace("-", "")
+        .replace("/", "")
+        .replace(".", "")
+        .replace("(", "")
+        .replace(")", "")
+        .replace("%", "pct")
     )
 
-    # Avoid impossible returns below -100%.
-    simulated_real_returns = np.clip(simulated_real_returns, -0.95, None)
 
-    if config.projection_mode == "Nominal values":
-        simulated_returns = real_to_nominal_return(simulated_real_returns, monthly_inflation)
+def first_matching_column(columns: List[str], candidates: List[str]) -> Optional[str]:
+    keys = {normalise_col_key(c): c for c in columns}
+    candidate_keys = [normalise_col_key(c) for c in candidates]
+
+    # Exact normalised match first
+    for ck in candidate_keys:
+        if ck in keys:
+            return keys[ck]
+
+    # Then contains match
+    for col in columns:
+        k = normalise_col_key(col)
+        for ck in candidate_keys:
+            if ck and ck in k:
+                return col
+
+    return None
+
+
+def parse_shiller_decimal_date(value: object) -> pd.Timestamp:
+    """
+    Handles Shiller style dates such as 1871.01, 1871.02, ..., 2024.12.
+    This is not a true decimal year; the part after the dot usually represents month.
+    """
+    if pd.isna(value):
+        return pd.NaT
+
+    try:
+        text = str(value).strip()
+        if not text:
+            return pd.NaT
+
+        # Already date-like
+        if "-" in text or "/" in text:
+            return pd.to_datetime(text, errors="coerce")
+
+        val = float(text)
+        year = int(math.floor(val))
+        raw_month = int(round((val - year) * 100))
+
+        if raw_month < 1 or raw_month > 12:
+            # fallback for genuine decimal-year values
+            raw_month = int(round((val - year) * 12)) + 1
+            raw_month = min(max(raw_month, 1), 12)
+
+        return pd.Timestamp(year=year, month=raw_month, day=1)
+    except Exception:
+        return pd.NaT
+
+
+def infer_and_parse_date(df: pd.DataFrame, date_col: Optional[str]) -> pd.DataFrame:
+    out = df.copy()
+
+    if date_col is None:
+        # Try index if it looks date-like
+        try:
+            parsed_index = pd.to_datetime(out.index, errors="coerce")
+            if parsed_index.notna().mean() > 0.8:
+                out["Date"] = parsed_index
+                return out
+        except Exception:
+            pass
+        return out
+
+    raw = out[date_col]
+
+    # If date column is numeric, likely Shiller yyyy.mm format
+    if pd.api.types.is_numeric_dtype(raw):
+        parsed = raw.apply(parse_shiller_decimal_date)
     else:
-        simulated_returns = simulated_real_returns
+        parsed = pd.to_datetime(raw, errors="coerce")
+        if parsed.notna().mean() < 0.7:
+            parsed = raw.apply(parse_shiller_decimal_date)
 
-    wealth = np.zeros((config.n_sims, n_months + 1), dtype=float)
-    wealth[:, 0] = config.starting_wealth
-
-    for m in range(1, n_months + 1):
-        wealth[:, m] = wealth[:, m - 1] * (1.0 + simulated_returns[:, m - 1]) + config.monthly_contribution
-
-    months = np.arange(n_months + 1)
-    summary = pd.DataFrame({
-        "Month": months,
-        "Year": months / 12.0,
-        "P10": np.percentile(wealth, 10, axis=0),
-        "P25": np.percentile(wealth, 25, axis=0),
-        "Median": np.percentile(wealth, 50, axis=0),
-        "Mean": np.mean(wealth, axis=0),
-        "P75": np.percentile(wealth, 75, axis=0),
-        "P90": np.percentile(wealth, 90, axis=0),
-    })
-
-    return summary
+    out["Date"] = parsed
+    out = out.dropna(subset=["Date"])
+    out = out.sort_values("Date")
+    return out
 
 
-def plot_wealth(summary: pd.DataFrame, projection_mode: str) -> go.Figure:
-    fig = go.Figure()
+def load_uploaded_file(uploaded_file) -> pd.DataFrame:
+    name = uploaded_file.name.lower()
+    content = uploaded_file.read()
 
-    fig.add_trace(go.Scatter(
-        x=summary["Year"],
-        y=summary["P90"],
-        mode="lines",
-        line=dict(width=0),
-        showlegend=False,
-        hoverinfo="skip",
-    ))
+    if name.endswith(".csv"):
+        return pd.read_csv(io.BytesIO(content))
 
-    fig.add_trace(go.Scatter(
-        x=summary["Year"],
-        y=summary["P10"],
-        mode="lines",
-        fill="tonexty",
-        name="10th-90th percentile range",
-        line=dict(width=0),
-    ))
+    if name.endswith(".xlsx") or name.endswith(".xls"):
+        return pd.read_excel(io.BytesIO(content))
 
-    fig.add_trace(go.Scatter(
-        x=summary["Year"],
-        y=summary["Median"],
-        mode="lines",
-        name="Median",
-        line=dict(width=3),
-    ))
+    if name.endswith(".mat"):
+        if loadmat is None:
+            raise RuntimeError("scipy is required to read .mat files. Install scipy or upload CSV/XLSX.")
+        mat = loadmat(io.BytesIO(content), squeeze_me=True, struct_as_record=False)
+        return mat_to_dataframe(mat)
 
-    fig.add_trace(go.Scatter(
-        x=summary["Year"],
-        y=summary["Mean"],
-        mode="lines",
-        name="Mean",
-        line=dict(width=2, dash="dash"),
-    ))
+    raise ValueError("Unsupported file type. Please upload CSV, XLSX, XLS, or MAT.")
 
-    fig.update_layout(
-        title=f"Projected wealth ({projection_mode})",
-        xaxis_title="Years",
-        yaxis_title="Portfolio value",
-        hovermode="x unified",
-        legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
-        margin=dict(l=20, r=20, t=70, b=20),
+
+def mat_to_dataframe(mat: Dict[str, object]) -> pd.DataFrame:
+    """
+    Best-effort MAT reader.
+    Works when the MAT file contains either:
+    - one 2D numeric array, or
+    - multiple equal-length vectors.
+
+    If your MAT file is complex, export it to CSV from MATLAB for best reliability.
+    """
+    usable = {
+        k: v
+        for k, v in mat.items()
+        if not k.startswith("__") and not callable(v)
+    }
+
+    # Prefer a 2D numeric array
+    for key, value in usable.items():
+        arr = np.asarray(value)
+        if arr.ndim == 2 and arr.size > 0 and np.issubdtype(arr.dtype, np.number):
+            if arr.shape[0] < arr.shape[1]:
+                # Usually rows are observations; do not transpose if clearly already tall
+                pass
+            return pd.DataFrame(arr, columns=[f"col_{i+1}" for i in range(arr.shape[1])])
+
+    # Equal-length vectors
+    vectors = {}
+    lengths = []
+    for key, value in usable.items():
+        arr = np.asarray(value).squeeze()
+        if arr.ndim == 1 and arr.size > 1 and np.issubdtype(arr.dtype, np.number):
+            vectors[key] = arr
+            lengths.append(arr.size)
+
+    if vectors:
+        common_len = pd.Series(lengths).mode().iloc[0]
+        selected = {k: v for k, v in vectors.items() if len(v) == common_len}
+        if selected:
+            return pd.DataFrame(selected)
+
+    raise ValueError("Could not convert MAT file into a table. Please export the dataset as CSV/XLSX.")
+
+
+def infer_columns(df: pd.DataFrame) -> ColumnMap:
+    cols = [clean_col_name(c) for c in df.columns]
+    df.columns = cols
+
+    date = first_matching_column(cols, ["Date", "Month", "Time", "YearMonth", "Year_Month"])
+    price = first_matching_column(cols, ["Price", "P", "S&P", "S&P 500", "SP500", "Index", "Close"])
+    earnings = first_matching_column(cols, ["Earnings", "E", "EPS", "Trailing earnings"])
+    dividend = first_matching_column(cols, ["Dividend", "Dividends", "D", "Dividend Yield"])
+    cpi = first_matching_column(cols, ["CPI", "Consumer Price Index", "Inflation Index"])
+    cape = first_matching_column(cols, ["CAPE", "CAPE Ratio", "Shiller PE", "Cyclically Adjusted PE", "P/E10", "PE10"])
+    tri = first_matching_column(cols, ["Total Return", "Total Return Index", "TR", "TRI", "Nominal Total Return Index"])
+    real_tri = first_matching_column(cols, ["Real Total Return", "Real Total Return Index", "Real TR", "Real TRI"])
+
+    # Avoid conflict where column "P/E10" is detected as price due contains P.
+    if price == cape:
+        price = first_matching_column(cols, ["Price", "S&P 500 Price", "SP500 Price", "Close"])
+
+    return ColumnMap(
+        date=date,
+        price=price,
+        earnings=earnings,
+        dividend=dividend,
+        cpi=cpi,
+        cape=cape,
+        total_return_index=tri,
+        real_total_return_index=real_tri,
     )
 
+
+def to_numeric_series(df: pd.DataFrame, col: Optional[str]) -> Optional[pd.Series]:
+    if col is None or col not in df.columns:
+        return None
+    return pd.to_numeric(df[col], errors="coerce")
+
+
+def annualised_return(start: pd.Series, end: pd.Series, years: float) -> pd.Series:
+    ratio = end / start
+    ratio = ratio.where((ratio > 0) & np.isfinite(ratio))
+    return ratio.pow(1.0 / years) - 1.0
+
+
+def real_to_nominal_return(real_return: pd.Series | float, inflation: pd.Series | float) -> pd.Series | float:
+    return (1.0 + real_return) * (1.0 + inflation) - 1.0
+
+
+def nominal_to_real_return(nominal_return: pd.Series | float, inflation: pd.Series | float) -> pd.Series | float:
+    return (1.0 + nominal_return) / (1.0 + inflation) - 1.0
+
+
+def compute_cape_from_price_earnings_cpi(
+    df: pd.DataFrame,
+    price_col: str,
+    earnings_col: str,
+    cpi_col: str,
+    window_months: int = 120,
+) -> pd.Series:
+    price = pd.to_numeric(df[price_col], errors="coerce")
+    earnings = pd.to_numeric(df[earnings_col], errors="coerce")
+    cpi = pd.to_numeric(df[cpi_col], errors="coerce")
+
+    cpi_ref = cpi.iloc[-1]
+    real_price = price / cpi * cpi_ref
+    real_earnings = earnings / cpi * cpi_ref
+    avg_real_earnings = real_earnings.rolling(window_months, min_periods=window_months).mean()
+
+    cape = real_price / avg_real_earnings
+    cape = cape.replace([np.inf, -np.inf], np.nan)
+    return cape
+
+
+def build_real_total_return_index(
+    df: pd.DataFrame,
+    cmap: ColumnMap,
+    assume_shiller_dividend_is_annual: bool = True,
+) -> pd.Series:
+    """
+    Returns a real total return index.
+
+    Priority:
+    1. Existing real total return index.
+    2. Existing nominal total return index deflated by CPI.
+    3. Price + dividend approximation deflated by CPI.
+    4. Real price index only, if dividends are unavailable.
+
+    Shiller's historical monthly dataset usually has P, D, E, CPI, CAPE.
+    The D column is commonly interpreted as annualised dividend amount.
+    A monthly total-return approximation therefore uses D / 12.
+    """
+    cpi = to_numeric_series(df, cmap.cpi)
+
+    real_tri = to_numeric_series(df, cmap.real_total_return_index)
+    if real_tri is not None:
+        idx = real_tri / real_tri.dropna().iloc[0]
+        return idx.rename("real_total_return_index")
+
+    tri = to_numeric_series(df, cmap.total_return_index)
+    if tri is not None and cpi is not None:
+        real = tri / cpi * cpi.iloc[-1]
+        idx = real / real.dropna().iloc[0]
+        return idx.rename("real_total_return_index")
+
+    price = to_numeric_series(df, cmap.price)
+    dividend = to_numeric_series(df, cmap.dividend)
+
+    if price is None:
+        raise ValueError("Need either a total return index or a price column to build return series.")
+
+    if cpi is None:
+        raise ValueError("Need CPI to convert returns to real terms for CAPE calibration.")
+
+    if dividend is not None:
+        monthly_div = dividend / 12.0 if assume_shiller_dividend_is_annual else dividend
+        prev_price = price.shift(1)
+        nominal_monthly_return = (price + monthly_div) / prev_price - 1.0
+    else:
+        nominal_monthly_return = price.pct_change()
+
+    inflation_monthly = cpi.pct_change()
+    real_monthly_return = nominal_to_real_return(nominal_monthly_return, inflation_monthly)
+    real_monthly_return = real_monthly_return.replace([np.inf, -np.inf], np.nan).fillna(0.0)
+
+    idx = (1.0 + real_monthly_return).cumprod()
+    return idx.rename("real_total_return_index")
+
+
+def prepare_dataset(
+    raw_df: pd.DataFrame,
+    user_col_map: Optional[ColumnMap] = None,
+    cape_window_months: int = 120,
+    assume_shiller_dividend_is_annual: bool = True,
+) -> Tuple[pd.DataFrame, ColumnMap, List[str]]:
+    df = raw_df.copy()
+    df.columns = [clean_col_name(c) for c in df.columns]
+
+    cmap = infer_columns(df) if user_col_map is None else user_col_map
+    notes: List[str] = []
+
+    df = infer_and_parse_date(df, cmap.date)
+    if "Date" not in df.columns:
+        raise ValueError("Could not infer a date column. Please select one manually or rename it to Date.")
+
+    df = df.sort_values("Date").reset_index(drop=True)
+
+    # Numeric conversion for selected columns
+    for col in [cmap.price, cmap.earnings, cmap.dividend, cmap.cpi, cmap.cape, cmap.total_return_index, cmap.real_total_return_index]:
+        if col is not None and col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+
+    # CAPE: use existing if present, otherwise calculate
+    if cmap.cape is not None and cmap.cape in df.columns:
+        df["CAPE"] = pd.to_numeric(df[cmap.cape], errors="coerce")
+        notes.append("Using existing CAPE column from the uploaded data.")
+    else:
+        if cmap.price and cmap.earnings and cmap.cpi:
+            df["CAPE"] = compute_cape_from_price_earnings_cpi(
+                df,
+                price_col=cmap.price,
+                earnings_col=cmap.earnings,
+                cpi_col=cmap.cpi,
+                window_months=cape_window_months,
+            )
+            notes.append("Calculated CAPE from real price divided by 10-year average real earnings.")
+        else:
+            raise ValueError(
+                "No CAPE column found and not enough columns to calculate it. Need Price, Earnings, and CPI."
+            )
+
+    # Real total return index for calibration
+    df["real_total_return_index"] = build_real_total_return_index(
+        df,
+        cmap,
+        assume_shiller_dividend_is_annual=assume_shiller_dividend_is_annual,
+    )
+
+    # Also build nominal price/index for display if possible
+    if cmap.total_return_index:
+        df["nominal_reference_index"] = to_numeric_series(df, cmap.total_return_index)
+        notes.append("Nominal reference index uses uploaded total return index.")
+    elif cmap.price:
+        df["nominal_reference_index"] = to_numeric_series(df, cmap.price)
+        notes.append("Nominal reference index uses price column only; dividends may not be included in nominal display.")
+    else:
+        df["nominal_reference_index"] = np.nan
+
+    # Inflation series
+    if cmap.cpi:
+        cpi = to_numeric_series(df, cmap.cpi)
+        df["inflation_monthly"] = cpi.pct_change()
+        df["inflation_annualised_12m"] = cpi.pct_change(12)
+    else:
+        df["inflation_monthly"] = np.nan
+        df["inflation_annualised_12m"] = np.nan
+
+    df = df.replace([np.inf, -np.inf], np.nan)
+    return df, cmap, notes
+
+
+# ============================================================
+# Calibration functions
+# ============================================================
+
+
+def add_forward_real_returns(df: pd.DataFrame, horizon_years: int) -> pd.DataFrame:
+    out = df.copy()
+    months = horizon_years * 12
+    start = out["real_total_return_index"]
+    end = out["real_total_return_index"].shift(-months)
+    out[f"forward_{horizon_years}y_real_return_ann"] = annualised_return(start, end, horizon_years)
+    return out
+
+
+def fit_linear_regression(x: pd.Series, y: pd.Series) -> Tuple[float, float, float, int, pd.DataFrame]:
+    data = pd.DataFrame({"x": x, "y": y}).replace([np.inf, -np.inf], np.nan).dropna()
+    data = data[(data["x"].abs() < 1e6) & (data["y"].abs() < 10)]
+
+    if len(data) < 20:
+        raise ValueError("Not enough valid observations for calibration. Try a shorter horizon or check the data.")
+
+    X = np.vstack([data["x"].values, np.ones(len(data))]).T
+    slope, intercept = np.linalg.lstsq(X, data["y"].values, rcond=None)[0]
+    y_hat = slope * data["x"].values + intercept
+
+    ss_res = np.sum((data["y"].values - y_hat) ** 2)
+    ss_tot = np.sum((data["y"].values - np.mean(data["y"].values)) ** 2)
+    r2 = 1.0 - ss_res / ss_tot if ss_tot > 0 else np.nan
+
+    fitted = data.copy()
+    fitted["y_hat"] = y_hat
+    return float(slope), float(intercept), float(r2), len(data), fitted
+
+
+def calibrate_cape_model(
+    df: pd.DataFrame,
+    horizon_years: int = 10,
+    predictor: str = "cape_yield",
+) -> CalibrationResult:
+    work = add_forward_real_returns(df, horizon_years)
+    y_col = f"forward_{horizon_years}y_real_return_ann"
+
+    if predictor == "cape":
+        x = work["CAPE"]
+        x_name = "CAPE"
+    elif predictor == "cape_yield":
+        x = 1.0 / work["CAPE"]
+        x_name = "1 / CAPE"
+    elif predictor == "log_cape":
+        x = np.log(work["CAPE"])
+        x_name = "log(CAPE)"
+    else:
+        raise ValueError("Unsupported predictor.")
+
+    y = work[y_col]
+    slope, intercept, r2, n_obs, fitted = fit_linear_regression(x, y)
+
+    return CalibrationResult(
+        model_name=f"Forward {horizon_years}Y real return ~ {x_name}",
+        horizon_years=horizon_years,
+        slope=slope,
+        intercept=intercept,
+        r2=r2,
+        n_obs=n_obs,
+        x_name=x_name,
+        y_name=f"Forward {horizon_years}Y annualised real return",
+        fitted=fitted,
+    )
+
+
+def predict_real_return_from_cape(cape: float, calibration: CalibrationResult) -> float:
+    if calibration.x_name == "CAPE":
+        x = cape
+    elif calibration.x_name == "1 / CAPE":
+        x = 1.0 / cape
+    elif calibration.x_name == "log(CAPE)":
+        x = math.log(cape)
+    else:
+        raise ValueError("Unknown calibration predictor.")
+    return calibration.slope * x + calibration.intercept
+
+
+def empirical_real_return_distribution(
+    df: pd.DataFrame,
+    horizon_years: int,
+    cape_now: float,
+    matching_strength: float = 0.35,
+    min_obs: int = 50,
+) -> pd.Series:
+    """
+    Pulls historical forward real returns from observations with CAPE close to today's CAPE.
+    matching_strength is a fractional band around CAPE.
+    Example: 0.35 means use CAPE within ±35% of current CAPE.
+    """
+    work = add_forward_real_returns(df, horizon_years)
+    y_col = f"forward_{horizon_years}y_real_return_ann"
+
+    lower = cape_now * (1.0 - matching_strength)
+    upper = cape_now * (1.0 + matching_strength)
+
+    matched = work.loc[work["CAPE"].between(lower, upper), y_col].dropna()
+    all_returns = work[y_col].dropna()
+
+    if len(matched) < min_obs:
+        return all_returns
+
+    return matched
+
+
+# ============================================================
+# Projection and simulation functions
+# ============================================================
+
+
+def project_lump_sum(
+    initial_amount: float,
+    annual_real_return: float,
+    annual_inflation: float,
+    years: int,
+) -> pd.DataFrame:
+    rows = []
+    nominal_return = real_to_nominal_return(annual_real_return, annual_inflation)
+
+    for y in range(years + 1):
+        real_value = initial_amount * ((1.0 + annual_real_return) ** y)
+        nominal_value = initial_amount * ((1.0 + nominal_return) ** y)
+        inflation_index = (1.0 + annual_inflation) ** y
+        rows.append(
+            {
+                "Year": y,
+                "Real value_today_money": real_value,
+                "Nominal account_value": nominal_value,
+                "Inflation index": inflation_index,
+                "Nominal return used": nominal_return,
+                "Real return used": annual_real_return,
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def project_monthly_contributions(
+    initial_amount: float,
+    monthly_contribution: float,
+    annual_real_return: float,
+    annual_inflation: float,
+    years: int,
+    contribution_growth_with_inflation: bool = True,
+) -> pd.DataFrame:
+    months = years * 12
+    monthly_real_return = (1.0 + annual_real_return) ** (1.0 / 12.0) - 1.0
+    annual_nominal_return = real_to_nominal_return(annual_real_return, annual_inflation)
+    monthly_nominal_return = (1.0 + annual_nominal_return) ** (1.0 / 12.0) - 1.0
+    monthly_inflation = (1.0 + annual_inflation) ** (1.0 / 12.0) - 1.0
+
+    real_value = initial_amount
+    nominal_value = initial_amount
+
+    rows = []
+    for m in range(months + 1):
+        year = m / 12.0
+        rows.append(
+            {
+                "Month": m,
+                "Year": year,
+                "Real value_today_money": real_value,
+                "Nominal account_value": nominal_value,
+            }
+        )
+
+        if m == months:
+            break
+
+        contribution_nominal = monthly_contribution
+        if contribution_growth_with_inflation:
+            contribution_nominal = monthly_contribution * ((1.0 + monthly_inflation) ** m)
+
+        contribution_real = contribution_nominal / ((1.0 + monthly_inflation) ** m)
+
+        real_value = (real_value + contribution_real) * (1.0 + monthly_real_return)
+        nominal_value = (nominal_value + contribution_nominal) * (1.0 + monthly_nominal_return)
+
+    return pd.DataFrame(rows)
+
+
+def run_monte_carlo_projection(
+    initial_amount: float,
+    monthly_contribution: float,
+    years: int,
+    real_return_samples: np.ndarray,
+    annual_inflation: float,
+    n_sims: int,
+    contribution_growth_with_inflation: bool = True,
+    random_seed: int = 42,
+) -> pd.DataFrame:
+    rng = np.random.default_rng(random_seed)
+    sampled_real_returns = rng.choice(real_return_samples, size=n_sims, replace=True)
+
+    results = []
+    for i, rr in enumerate(sampled_real_returns):
+        path = project_monthly_contributions(
+            initial_amount=initial_amount,
+            monthly_contribution=monthly_contribution,
+            annual_real_return=float(rr),
+            annual_inflation=annual_inflation,
+            years=years,
+            contribution_growth_with_inflation=contribution_growth_with_inflation,
+        )
+        last = path.iloc[-1]
+        results.append(
+            {
+                "Simulation": i + 1,
+                "Sampled annual real return": float(rr),
+                "Sampled annual nominal return": float(real_to_nominal_return(float(rr), annual_inflation)),
+                "Final real value_today_money": float(last["Real value_today_money"]),
+                "Final nominal account_value": float(last["Nominal account_value"]),
+            }
+        )
+
+    return pd.DataFrame(results)
+
+
+# ============================================================
+# Chart functions
+# ============================================================
+
+
+def plot_cape_history(df: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["Date"], y=df["CAPE"], mode="lines", name="CAPE"))
+    fig.update_layout(
+        title="Historical CAPE",
+        xaxis_title="Date",
+        yaxis_title="CAPE",
+        height=420,
+        hovermode="x unified",
+    )
+    return fig
+
+
+def plot_forward_returns(df: pd.DataFrame, horizon_years: int) -> go.Figure:
+    work = add_forward_real_returns(df, horizon_years)
+    y_col = f"forward_{horizon_years}y_real_return_ann"
+
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=work["Date"],
+            y=work[y_col] * 100,
+            mode="lines",
+            name=f"Forward {horizon_years}Y real return",
+        )
+    )
+    fig.update_layout(
+        title=f"Historical Forward {horizon_years}-Year Annualised Real Returns",
+        xaxis_title="Start date",
+        yaxis_title="Annualised real return (%)",
+        height=420,
+        hovermode="x unified",
+    )
+    return fig
+
+
+def plot_calibration(cal: CalibrationResult) -> go.Figure:
+    fitted = cal.fitted.copy()
+    fitted["y_pct"] = fitted["y"] * 100
+    fitted["y_hat_pct"] = fitted["y_hat"] * 100
+
+    fig = px.scatter(
+        fitted,
+        x="x",
+        y="y_pct",
+        labels={"x": cal.x_name, "y_pct": cal.y_name + " (%)"},
+        title=f"CAPE Calibration: {cal.model_name}",
+    )
+
+    line_df = fitted.sort_values("x")
+    fig.add_trace(
+        go.Scatter(
+            x=line_df["x"],
+            y=line_df["y_hat_pct"],
+            mode="lines",
+            name="Fitted line",
+        )
+    )
+
+    fig.update_layout(height=480)
+    return fig
+
+
+def plot_projection(path: pd.DataFrame) -> go.Figure:
+    x = path["Year"]
+    fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=path["Nominal account_value"],
+            mode="lines",
+            name="Nominal account value",
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=x,
+            y=path["Real value_today_money"],
+            mode="lines",
+            name="Real value in today's money",
+        )
+    )
+    fig.update_layout(
+        title="Projection: nominal vs real wealth",
+        xaxis_title="Year",
+        yaxis_title="Portfolio value",
+        height=480,
+        hovermode="x unified",
+    )
+    return fig
+
+
+def plot_monte_carlo(mc: pd.DataFrame) -> go.Figure:
+    fig = go.Figure()
+    fig.add_trace(
+        go.Histogram(
+            x=mc["Final nominal account_value"],
+            name="Nominal final value",
+            opacity=0.75,
+        )
+    )
+    fig.add_trace(
+        go.Histogram(
+            x=mc["Final real value_today_money"],
+            name="Real final value",
+            opacity=0.75,
+        )
+    )
+    fig.update_layout(
+        title="Monte Carlo final wealth distribution",
+        xaxis_title="Final value",
+        yaxis_title="Count",
+        barmode="overlay",
+        height=480,
+    )
     return fig
 
 
 # ============================================================
-# Sidebar controls
+# Formatting helpers
 # ============================================================
-st.sidebar.header("Inputs")
 
-starting_wealth = st.sidebar.number_input(
-    "Starting wealth",
-    min_value=0.0,
-    value=10_000.0,
-    step=500.0,
-)
 
-monthly_contribution = st.sidebar.number_input(
-    "Monthly contribution",
-    min_value=0.0,
-    value=500.0,
-    step=50.0,
-)
+def pct(x: float) -> str:
+    if x is None or not np.isfinite(x):
+        return "n/a"
+    return f"{x * 100:.2f}%"
 
-years = st.sidebar.slider("Projection horizon (years)", 1, 50, 25)
-n_sims = st.sidebar.slider("Monte Carlo simulations", 100, 20_000, 5_000, step=100)
 
-st.sidebar.header("Return model")
+def money(x: float, currency: str = "£") -> str:
+    if x is None or not np.isfinite(x):
+        return "n/a"
+    return f"{currency}{x:,.0f}"
 
-model_mode = st.sidebar.radio(
-    "Expected return source",
-    ["Manual real return", "CAPE-based real return"],
-    index=0,
-)
 
-manual_real_return_annual = st.sidebar.number_input(
-    "Manual expected annual real return (%)",
-    min_value=-10.0,
-    max_value=20.0,
-    value=4.0,
-    step=0.1,
-) / 100.0
-
-volatility_annual = st.sidebar.number_input(
-    "Annual volatility (%)",
-    min_value=1.0,
-    max_value=80.0,
-    value=15.0,
-    step=0.5,
-) / 100.0
-
-st.sidebar.header("Inflation / nominal projection")
-
-projection_mode = st.sidebar.radio(
-    "Projection mode",
-    ["Real values", "Nominal values"],
-    index=0,
-    help="Real values show purchasing-power-adjusted results. Nominal values show estimated future account balances before inflation adjustment.",
-)
-
-expected_inflation_annual = st.sidebar.number_input(
-    "Expected annual inflation (%)",
-    min_value=-5.0,
-    max_value=20.0,
-    value=2.5,
-    step=0.1,
-) / 100.0
-
-seed = st.sidebar.number_input("Random seed", min_value=1, max_value=999_999, value=42, step=1)
+def metric_card(label: str, value: str, help_text: Optional[str] = None):
+    st.metric(label, value, help=help_text)
 
 
 # ============================================================
-# Optional data upload
+# Demo data
 # ============================================================
-st.subheader("Historical data / CAPE input")
 
-uploaded_file = st.file_uploader(
-    "Optional: upload CSV with returns, CAPE, or Price/Earnings/CPI columns",
-    type=["csv"],
-)
 
-cape_value = np.nan
-historical_monthly_returns = None
-uploaded_df = None
+def make_demo_data() -> pd.DataFrame:
+    """
+    Synthetic demonstration dataset only.
+    The app is designed for uploaded Shiller/CAPE historical data.
+    """
+    rng = np.random.default_rng(7)
+    dates = pd.date_range("1950-01-01", "2025-12-01", freq="MS")
+    n = len(dates)
 
-if uploaded_file is not None:
-    uploaded_df = load_uploaded_csv(uploaded_file)
-    st.success("CSV loaded successfully.")
+    inflation_m = rng.normal(0.0025, 0.002, n).clip(-0.01, 0.02)
+    cpi = 100 * np.cumprod(1 + inflation_m)
 
-    with st.expander("Preview uploaded data"):
-        st.dataframe(uploaded_df.head(20), use_container_width=True)
+    real_return_m = rng.normal(0.005, 0.04, n)
+    real_price = 100 * np.cumprod(1 + real_return_m)
+    price = real_price * cpi / cpi[-1]
 
-    historical_monthly_returns = infer_return_series(uploaded_df)
-    cape_series = infer_cape_series(uploaded_df)
+    # Synthetic earnings and CAPE-like cycle
+    real_earnings = real_price / (18 + 8 * np.sin(np.linspace(0, 10 * np.pi, n)) + rng.normal(0, 2, n))
+    earnings = real_earnings * cpi / cpi[-1]
+    dividend = price * 0.018
 
-    if cape_series is not None and cape_series.dropna().shape[0] > 0:
-        cape_value = float(cape_series.dropna().iloc[-1])
-        st.metric("Latest inferred CAPE", f"{cape_value:.2f}")
-    else:
-        st.warning("No CAPE column found and CAPE could not be computed from Price/Earnings/CPI columns.")
+    df = pd.DataFrame(
+        {
+            "Date": dates,
+            "Price": price,
+            "Earnings": earnings,
+            "Dividend": dividend,
+            "CPI": cpi,
+        }
+    )
+    return df
 
-    if historical_monthly_returns is not None and historical_monthly_returns.dropna().shape[0] > 12:
-        hist_ann_return = monthly_to_annual_return(historical_monthly_returns.mean())
-        hist_ann_vol = historical_monthly_returns.std() * np.sqrt(12.0)
-        col_a, col_b = st.columns(2)
-        col_a.metric("Historical annualised return", safe_percent(hist_ann_return))
-        col_b.metric("Historical annualised volatility", safe_percent(hist_ann_vol))
-    else:
-        st.info("No usable return or price series was inferred from the uploaded file.")
-else:
-    st.info(
-        "You can run the app without data using manual assumptions, or upload a CSV containing either returns, CAPE, or Price/Earnings/CPI."
+
+# ============================================================
+# Main app
+# ============================================================
+
+
+def main():
+    st.title("📈 CAPE Real/Nominal Investment Studio")
+    st.caption("CAPE calibration in real returns, then conversion to nominal wealth projections.")
+
+    with st.expander("How this version treats CAPE, inflation, real returns, and nominal account value", expanded=True):
+        st.markdown(THEORY_NOTE)
+
+    st.sidebar.header("1) Data")
+    uploaded_file = st.sidebar.file_uploader(
+        "Upload Shiller/CAPE historical data",
+        type=["csv", "xlsx", "xls", "mat"],
+        help="CSV/XLSX is recommended. The app also tries to read simple MATLAB .mat files.",
     )
 
+    use_demo = st.sidebar.checkbox("Use synthetic demo data", value=uploaded_file is None)
 
-# ============================================================
-# CAPE calibration controls
-# ============================================================
-if model_mode == "CAPE-based real return":
-    st.subheader("CAPE-based real return model")
+    if uploaded_file is not None:
+        try:
+            raw_df = load_uploaded_file(uploaded_file)
+        except Exception as exc:
+            st.error(f"Could not load file: {exc}")
+            return
+    elif use_demo:
+        raw_df = make_demo_data()
+        st.info("Using synthetic demo data. Upload Shiller/CAPE historical data for real analysis.")
+    else:
+        st.warning("Upload a data file or enable synthetic demo data.")
+        return
 
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        cape_manual = st.number_input(
-            "Current CAPE if not uploaded",
-            min_value=1.0,
-            max_value=100.0,
-            value=30.0,
-            step=0.5,
+    raw_df.columns = [clean_col_name(c) for c in raw_df.columns]
+    inferred = infer_columns(raw_df.copy())
+
+    st.sidebar.header("2) Column mapping")
+    cols = [None] + list(raw_df.columns)
+
+    def select_col(label: str, inferred_col: Optional[str]) -> Optional[str]:
+        index = cols.index(inferred_col) if inferred_col in cols else 0
+        selected = st.sidebar.selectbox(label, cols, index=index)
+        return selected if selected is not None else None
+
+    with st.sidebar.expander("Manual column mapping", expanded=False):
+        date_col = select_col("Date column", inferred.date)
+        price_col = select_col("Price column", inferred.price)
+        earnings_col = select_col("Earnings column", inferred.earnings)
+        dividend_col = select_col("Dividend column", inferred.dividend)
+        cpi_col = select_col("CPI column", inferred.cpi)
+        cape_col = select_col("CAPE column", inferred.cape)
+        tri_col = select_col("Nominal total return index", inferred.total_return_index)
+        real_tri_col = select_col("Real total return index", inferred.real_total_return_index)
+
+    user_map = ColumnMap(
+        date=date_col,
+        price=price_col,
+        earnings=earnings_col,
+        dividend=dividend_col,
+        cpi=cpi_col,
+        cape=cape_col,
+        total_return_index=tri_col,
+        real_total_return_index=real_tri_col,
+    )
+
+    st.sidebar.header("3) CAPE settings")
+    cape_window_months = st.sidebar.slider("CAPE earnings smoothing window, months", 60, 180, 120, step=12)
+    assume_annual_dividend = st.sidebar.checkbox(
+        "Dividend column is annualised", value=True,
+        help="Shiller-style data usually reports dividend amount annualised. Monthly total-return approximation uses D/12."
+    )
+
+    try:
+        df, cmap, notes = prepare_dataset(
+            raw_df,
+            user_col_map=user_map,
+            cape_window_months=cape_window_months,
+            assume_shiller_dividend_is_annual=assume_annual_dividend,
         )
-    with col2:
-        cape_alpha = st.number_input(
-            "CAPE model alpha",
-            min_value=-0.10,
-            max_value=0.10,
-            value=0.015,
-            step=0.001,
-            format="%.3f",
+    except Exception as exc:
+        st.error(f"Could not prepare dataset: {exc}")
+        st.stop()
+
+    valid_cape = df["CAPE"].dropna()
+    if valid_cape.empty:
+        st.error("No valid CAPE observations were found.")
+        st.stop()
+
+    latest_row = df.dropna(subset=["CAPE"]).iloc[-1]
+    latest_date = latest_row["Date"]
+    latest_cape = float(latest_row["CAPE"])
+
+    st.subheader("Dataset check")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        metric_card("Start date", df["Date"].min().strftime("%Y-%m"))
+    with c2:
+        metric_card("End date", df["Date"].max().strftime("%Y-%m"))
+    with c3:
+        metric_card("Latest CAPE", f"{latest_cape:.2f}")
+    with c4:
+        metric_card("Valid rows", f"{len(df.dropna(subset=['CAPE'])):,}")
+
+    if notes:
+        with st.expander("Data preparation notes", expanded=False):
+            for note in notes:
+                st.write(f"- {note}")
+            st.write("Detected/selected columns:")
+            st.json(cmap.__dict__)
+
+    with st.expander("Preview prepared data", expanded=False):
+        st.dataframe(df.tail(20), use_container_width=True)
+
+    left, right = st.columns(2)
+    with left:
+        st.plotly_chart(plot_cape_history(df), use_container_width=True)
+    with right:
+        st.line_chart(
+            df.set_index("Date")[["real_total_return_index"]].dropna(),
+            use_container_width=True,
         )
-    with col3:
-        cape_beta = st.number_input(
-            "CAPE model beta",
-            min_value=0.0,
-            max_value=5.0,
-            value=1.10,
+
+    st.sidebar.header("4) Calibration")
+    horizon_years = st.sidebar.slider("Forward return horizon, years", 5, 30, 10, step=1)
+    predictor = st.sidebar.selectbox(
+        "CAPE predictor",
+        ["cape_yield", "cape", "log_cape"],
+        index=0,
+        format_func=lambda x: {"cape_yield": "1 / CAPE", "cape": "CAPE", "log_cape": "log(CAPE)"}[x],
+    )
+
+    try:
+        cal = calibrate_cape_model(df, horizon_years=horizon_years, predictor=predictor)
+        expected_real_return = predict_real_return_from_cape(latest_cape, cal)
+    except Exception as exc:
+        st.error(f"Calibration failed: {exc}")
+        st.stop()
+
+    st.subheader("CAPE calibration result")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        metric_card("Model", cal.model_name)
+    with c2:
+        metric_card("Observations", f"{cal.n_obs:,}")
+    with c3:
+        metric_card("R²", f"{cal.r2:.3f}")
+    with c4:
+        metric_card("CAPE-implied real return", pct(expected_real_return), "This is an inflation-adjusted expected annual return.")
+
+    st.plotly_chart(plot_calibration(cal), use_container_width=True)
+    st.plotly_chart(plot_forward_returns(df, horizon_years), use_container_width=True)
+
+    st.sidebar.header("5) Projection")
+    currency_symbol = st.sidebar.selectbox("Currency symbol", ["£", "$", "€"], index=0)
+    initial_amount = st.sidebar.number_input("Initial investment", min_value=0.0, value=10000.0, step=500.0)
+    monthly_contribution = st.sidebar.number_input("Monthly contribution", min_value=0.0, value=500.0, step=50.0)
+    projection_years = st.sidebar.slider("Projection horizon, years", 1, 50, 25)
+    annual_inflation = st.sidebar.slider("Inflation assumption", -2.0, 10.0, 3.0, step=0.1) / 100.0
+    contribution_growth = st.sidebar.checkbox("Increase monthly contribution with inflation", value=True)
+
+    manual_real_return = st.sidebar.checkbox("Override CAPE-implied real return", value=False)
+    if manual_real_return:
+        expected_real_return = st.sidebar.slider("Manual real return", -10.0, 15.0, float(expected_real_return * 100), step=0.1) / 100.0
+
+    expected_nominal_return = real_to_nominal_return(expected_real_return, annual_inflation)
+
+    projection = project_monthly_contributions(
+        initial_amount=initial_amount,
+        monthly_contribution=monthly_contribution,
+        annual_real_return=expected_real_return,
+        annual_inflation=annual_inflation,
+        years=projection_years,
+        contribution_growth_with_inflation=contribution_growth,
+    )
+
+    final = projection.iloc[-1]
+
+    st.subheader("Projection: real vs nominal")
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        metric_card("Expected real return", pct(expected_real_return), "CAPE-calibrated return after inflation.")
+    with c2:
+        metric_card("Inflation assumption", pct(annual_inflation))
+    with c3:
+        metric_card("Expected nominal return", pct(expected_nominal_return), "Absolute expected account growth rate.")
+    with c4:
+        metric_card("Latest CAPE date", latest_date.strftime("%Y-%m"))
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        metric_card("Final nominal account value", money(final["Nominal account_value"], currency_symbol))
+    with c2:
+        metric_card("Final real value today-money", money(final["Real value_today_money"], currency_symbol))
+    with c3:
+        gap = final["Nominal account_value"] - final["Real value_today_money"]
+        metric_card("Inflation component", money(gap, currency_symbol), "Difference between nominal account value and today's-money value.")
+
+    st.plotly_chart(plot_projection(projection), use_container_width=True)
+
+    with st.expander("Projection table", expanded=False):
+        display_projection = projection.copy()
+        display_projection["Nominal account_value"] = display_projection["Nominal account_value"].round(2)
+        display_projection["Real value_today_money"] = display_projection["Real value_today_money"].round(2)
+        st.dataframe(display_projection, use_container_width=True)
+
+    st.subheader("Monte Carlo using historical CAPE-conditioned real returns")
+    mc_col1, mc_col2, mc_col3 = st.columns(3)
+    with mc_col1:
+        matching_strength = st.slider(
+            "CAPE matching band",
+            0.05,
+            1.00,
+            0.35,
             step=0.05,
+            help="0.35 means use historical observations where CAPE was within ±35% of latest CAPE. If too few observations exist, the app uses all observations.",
+        )
+    with mc_col2:
+        n_sims = st.slider("Number of simulations", 100, 10000, 2000, step=100)
+    with mc_col3:
+        random_seed = st.number_input("Random seed", value=42, step=1)
+
+    empirical_returns = empirical_real_return_distribution(
+        df,
+        horizon_years=horizon_years,
+        cape_now=latest_cape,
+        matching_strength=matching_strength,
+        min_obs=50,
+    )
+
+    if empirical_returns.empty:
+        st.warning("No empirical returns available for Monte Carlo.")
+    else:
+        mc = run_monte_carlo_projection(
+            initial_amount=initial_amount,
+            monthly_contribution=monthly_contribution,
+            years=projection_years,
+            real_return_samples=empirical_returns.values,
+            annual_inflation=annual_inflation,
+            n_sims=n_sims,
+            contribution_growth_with_inflation=contribution_growth,
+            random_seed=int(random_seed),
         )
 
-    effective_cape = cape_value if not pd.isna(cape_value) else cape_manual
-    expected_real_return_annual = estimate_real_return_from_cape(
-        effective_cape,
-        alpha=cape_alpha,
-        beta=cape_beta,
-    )
+        q = mc[["Final nominal account_value", "Final real value_today_money"]].quantile([0.1, 0.5, 0.9])
 
-    st.info(
-        "CAPE-based expected returns are treated as real returns. "
-        "If you select nominal values, the app adds expected inflation back to estimate the future account balance."
-    )
+        c1, c2, c3, c4 = st.columns(4)
+        with c1:
+            metric_card("Historical return samples", f"{len(empirical_returns):,}")
+        with c2:
+            metric_card("Median nominal", money(q.loc[0.5, "Final nominal account_value"], currency_symbol))
+        with c3:
+            metric_card("Median real", money(q.loc[0.5, "Final real value_today_money"], currency_symbol))
+        with c4:
+            metric_card("Median sampled real return", pct(mc["Sampled annual real return"].median()))
 
-    col1, col2, col3 = st.columns(3)
-    col1.metric("CAPE used", f"{effective_cape:.2f}")
-    col2.metric("Expected real annual return", safe_percent(expected_real_return_annual))
-    col3.metric(
-        "Expected nominal annual return",
-        safe_percent(real_to_nominal_return(expected_real_return_annual, expected_inflation_annual)),
-    )
-else:
-    expected_real_return_annual = manual_real_return_annual
+        st.plotly_chart(plot_monte_carlo(mc), use_container_width=True)
 
+        summary = pd.DataFrame(
+            {
+                "Metric": ["10th percentile", "Median", "90th percentile"],
+                "Nominal final account value": [
+                    q.loc[0.1, "Final nominal account_value"],
+                    q.loc[0.5, "Final nominal account_value"],
+                    q.loc[0.9, "Final nominal account_value"],
+                ],
+                "Real final value today-money": [
+                    q.loc[0.1, "Final real value_today_money"],
+                    q.loc[0.5, "Final real value_today_money"],
+                    q.loc[0.9, "Final real value_today_money"],
+                ],
+            }
+        )
+        st.dataframe(summary, use_container_width=True)
 
-# ============================================================
-# Run simulation
-# ============================================================
-st.subheader("Projection")
+        with st.expander("Monte Carlo raw output", expanded=False):
+            st.dataframe(mc, use_container_width=True)
 
-if projection_mode == "Real values":
-    st.caption("Results are shown in today's purchasing-power terms.")
-else:
-    st.caption("Results are shown as nominal future account balances before inflation adjustment.")
-
-config = SimulationConfig(
-    starting_wealth=starting_wealth,
-    monthly_contribution=monthly_contribution,
-    years=years,
-    n_sims=n_sims,
-    expected_real_return_annual=expected_real_return_annual,
-    volatility_annual=volatility_annual,
-    expected_inflation_annual=expected_inflation_annual,
-    projection_mode=projection_mode,
-    seed=int(seed),
-)
-
-summary = simulate_monthly_wealth(config)
-final_row = summary.iloc[-1]
-
-col1, col2, col3, col4 = st.columns(4)
-col1.metric("Final median", f"{final_row['Median']:,.0f}")
-col2.metric("Final mean", f"{final_row['Mean']:,.0f}")
-col3.metric("Final P10", f"{final_row['P10']:,.0f}")
-col4.metric("Final P90", f"{final_row['P90']:,.0f}")
-
-fig = plot_wealth(summary, projection_mode)
-st.plotly_chart(fig, use_container_width=True)
-
-with st.expander("Projection summary table"):
-    display_summary = summary.copy()
-    display_summary["Year"] = display_summary["Year"].round(2)
-    st.dataframe(display_summary, use_container_width=True)
-
-
-# ============================================================
-# Download outputs
-# ============================================================
-csv_buffer = io.StringIO()
-summary.to_csv(csv_buffer, index=False)
-st.download_button(
-    label="Download projection summary CSV",
-    data=csv_buffer.getvalue(),
-    file_name="sp500_projection_summary.csv",
-    mime="text/csv",
-)
-
-
-# ============================================================
-# Methodology notes
-# ============================================================
-with st.expander("Methodology notes"):
+    st.subheader("Key interpretation")
     st.markdown(
-        """
-### CAPE logic
-
-CAPE is a valuation ratio. It compares real price against the 10-year average of real earnings.
-That means CAPE is normally used to estimate **real returns**, not nominal account balances.
-
-### Real vs nominal projection
-
-If the CAPE model gives a 4% annual return, that should usually be interpreted as approximately
-4% after inflation.
-
-To estimate nominal account growth, this app uses:
-
-```text
-(1 + nominal return) = (1 + real return) × (1 + inflation)
-```
-
-Example:
-
-```text
-Real return = 4%
-Inflation = 2.5%
-Nominal return = (1.04 × 1.025) - 1 = 6.60%
-```
-
-### Important limitation
-
-The default CAPE model here is a transparent placeholder:
-
-```text
-Expected real return = alpha + beta × (1 / CAPE)
-```
-
-For high-confidence use, calibrate alpha and beta using historical out-of-sample testing.
-        """
+        f"""
+- The CAPE model currently estimates approximately **{pct(expected_real_return)} real annual return**.
+- With your inflation assumption of **{pct(annual_inflation)}**, that becomes approximately **{pct(expected_nominal_return)} nominal annual return**.
+- Therefore, the **absolute account value** can grow faster than the CAPE real-return number, but the difference is mainly inflation.
+- For long-term planning, the **real value** is the better measure of actual purchasing-power improvement.
+- For account balance targets, tax wrappers, pension pots, or nominal targets such as £200k/£400k, the **nominal value** is the number you will see on the account.
+"""
     )
+
+    st.caption(
+        "Important: This is a historical valuation-based model, not financial advice. CAPE has long-horizon statistical usefulness but poor short-term timing ability."
+    )
+
+
+if __name__ == "__main__":
+    main()
