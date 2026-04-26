@@ -10,7 +10,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-st.set_page_config(page_title="SNP investment", page_icon="📈", layout="wide")
+st.set_page_config(page_title="S&P 500 Investment analysis by Dimi", page_icon="📈", layout="wide")
 
 EMBEDDED_DATASETS = {}  # Old MAT dataset options removed; app uses only the latest embedded 1871-2026 text dataset.
 DEFAULT_DATASET = "snp1871 updated to 2026-03 - text"
@@ -832,6 +832,34 @@ def annualised_geometric_return(returns: pd.Series | np.ndarray) -> float:
     return float(np.prod(1.0 + arr) ** (12.0 / len(arr)) - 1.0)
 
 
+def real_to_nominal_return(real_return: float, inflation_rate: float) -> float:
+    """Convert an annual real return into an annual nominal return.
+
+    CAPE/Shiller-style valuation forecasts are best interpreted as real,
+    inflation-adjusted return anchors. The simulation engine projects nominal
+    account balances, so CAPE-mode forecasts add expected inflation back before
+    shifting Monte Carlo path returns.
+    """
+    if not np.isfinite(real_return):
+        return float("nan")
+    if not np.isfinite(inflation_rate):
+        inflation_rate = 0.0
+    return float((1.0 + float(real_return)) * (1.0 + float(inflation_rate)) - 1.0)
+
+
+def annualised_real_geometric_return(returns_df: pd.DataFrame) -> float:
+    """Annualised real return using monthly nominal returns and CPI inflation."""
+    if "return" not in returns_df.columns or "monthly_inflation" not in returns_df.columns:
+        return annualised_geometric_return(returns_df.get("return", pd.Series(dtype=float)))
+    nominal = pd.to_numeric(returns_df["return"], errors="coerce")
+    inflation = pd.to_numeric(returns_df["monthly_inflation"], errors="coerce")
+    valid = nominal.notna() & inflation.notna() & ((1.0 + inflation) > 0)
+    if not valid.any():
+        return annualised_geometric_return(nominal)
+    real_monthly = (1.0 + nominal.loc[valid]) / (1.0 + inflation.loc[valid]) - 1.0
+    return annualised_geometric_return(real_monthly)
+
+
 def get_latest_cape_value(returns_df: pd.DataFrame) -> float:
     if "cape" not in returns_df.columns:
         return float("nan")
@@ -1503,6 +1531,7 @@ def run_forecast_calibration(
     cape_matching_strength: float,
     fair_cape: float,
     cape_sensitivity: float,
+    expected_inflation_annual: float = 0.025,
     start_year: int = 1950,
     step_years: int = 5,
 ) -> pd.DataFrame:
@@ -1538,9 +1567,10 @@ def run_forecast_calibration(
         if forecast_mode == "forward":
             target_return_for_test = forward_expected_return_annual
         elif forecast_mode == "cape":
-            train_geo = annualised_geometric_return(train_df.loc[train_df["return"].notna(), "return"])
+            train_real_geo = annualised_real_geometric_return(train_df)
             train_cape = get_latest_cape_value(train_df)
-            target_return_for_test = valuation_adjusted_expected_return(train_geo, train_cape, fair_cape, cape_sensitivity)
+            target_real_return = valuation_adjusted_expected_return(train_real_geo, train_cape, fair_cape, cape_sensitivity)
+            target_return_for_test = real_to_nominal_return(target_real_return, expected_inflation_annual)
 
         seed = int(rng_master.integers(0, 1_000_000_000))
         mc = simulate_monte_carlo_block_bootstrap(
@@ -2086,7 +2116,7 @@ This is the most important forecasting control.
 |---|---|---|
 | Historical bootstrap, no return anchor | Uses sampled historical returns as-is | Baseline historical stress test |
 | Forward-return adjusted | Shifts paths so their average return matches your expected return | Planning with conservative/base/optimistic assumptions |
-| CAPE / valuation-adjusted | Reduces or increases expected return based on current CAPE vs fair CAPE | When market valuation is materially high or low |
+| CAPE / valuation-adjusted | Estimates a real return from CAPE, then adds expected inflation to create the nominal account-growth anchor | When market valuation is materially high or low |
 
 For planning, run at least three forward-return cases:
 
@@ -2171,7 +2201,7 @@ def main() -> None:
     <div class="hero">
         <div class="hero-row">
             <div>
-                <h1>S&amp;P 500 Investment Studio</h1>
+                <h1>S&amp;P 500 Investment analysis by Dimi</h1>
                 <p>Explore long-term investing outcomes with rolling historical windows, local-currency conversion, fees, drawdown, inflation and target-hit diagnostics.</p>
                 <div class="hero-badges">
                     <span class="badge">Rolling history</span>
@@ -2275,7 +2305,10 @@ def main() -> None:
         mc_forecast_mode = MC_FORECAST_MODE_OPTIONS[mc_forecast_mode_label]
 
         active_geo_return = annualised_geometric_return(returns_df.loc[returns_df["return"].notna(), "return"])
+        active_real_geo_return = annualised_real_geometric_return(returns_df)
         forward_expected_return_annual = active_geo_return
+        cape_expected_real_return_annual = float("nan")
+        expected_inflation_annual = 0.025
         latest_cape = cape_diag.get("latest_cape", float("nan"))
         latest_cape_date = cape_diag.get("latest_cape_date", None)
         current_cape = fair_cape = cape_sensitivity = float("nan")
@@ -2292,19 +2325,24 @@ def main() -> None:
                 fair_default = float(cape_diag.get("median_cape", 18.0)) if np.isfinite(cape_diag.get("median_cape", float("nan"))) else 18.0
                 fair_cape = c2.number_input("Fair CAPE", min_value=1.0, max_value=100.0, value=fair_default, step=0.5)
                 cape_sensitivity = c3.number_input("CAPE sensitivity", min_value=0.0, max_value=0.20, value=0.06, step=0.005, help="Higher values penalise expensive valuations more strongly.")
+                expected_inflation_annual = st.number_input("Expected inflation to add back (% / year)", min_value=-5.0, max_value=20.0, value=2.5, step=0.1, help="CAPE forecasts are treated as real returns. This converts them into nominal account-growth assumptions for the Monte Carlo engine.") / 100.0
                 cape_matching_strength = st.slider("CAPE matching strength", min_value=0.0, max_value=3.0, value=1.0, step=0.1, help="Used when the CAPE-conditioned sample pool is selected.")
-                forward_expected_return_annual = valuation_adjusted_expected_return(active_geo_return, current_cape, fair_cape, cape_sensitivity)
+                cape_expected_real_return_annual = valuation_adjusted_expected_return(active_real_geo_return, current_cape, fair_cape, cape_sensitivity)
+                forward_expected_return_annual = real_to_nominal_return(cape_expected_real_return_annual, expected_inflation_annual)
+                st.caption(f"CAPE real-return anchor: {cape_expected_real_return_annual*100:.2f}%/yr. Nominal anchor after adding inflation: {forward_expected_return_annual*100:.2f}%/yr.")
                 if latest_cape_date is not None and pd.notna(latest_cape_date):
                     st.caption(f"Latest embedded CAPE: {latest_cape:.2f} at {pd.to_datetime(latest_cape_date).strftime('%Y-%m')}.")
             else:
-                st.markdown(f"**Historical anchor**  \nActive-sample annualised return  \n{active_geo_return*100:.2f}%/yr")
+                st.markdown(f"**Historical anchor**  \nActive-sample nominal annualised return  \n{active_geo_return*100:.2f}%/yr")
                 if mc_sample_pool_mode == "cape_conditioned":
                     cape_matching_strength = st.slider("CAPE matching strength", min_value=0.0, max_value=3.0, value=1.0, step=0.1, help="Higher values sample more heavily from historical months whose CAPE was similar to the latest available CAPE.")
                     if latest_cape_date is not None and pd.notna(latest_cape_date):
                         st.caption(f"CAPE-conditioned pool uses latest embedded CAPE {latest_cape:.2f} from {pd.to_datetime(latest_cape_date).strftime('%Y-%m')}.")
 
-        if mc_forecast_mode in {"forward", "cape"}:
-            st.info(f"Monte Carlo paths will be shifted so their annualised return is anchored near **{forward_expected_return_annual*100:.2f}%/yr** before fees/platform costs. Historical shape and volatility clustering are preserved, but the median return assumption is forward-looking.")
+        if mc_forecast_mode == "cape":
+            st.info(f"CAPE mode treats the valuation-adjusted forecast as a **real** return ({cape_expected_real_return_annual*100:.2f}%/yr) and adds expected inflation ({expected_inflation_annual*100:.2f}%/yr), giving a **nominal** Monte Carlo anchor of **{forward_expected_return_annual*100:.2f}%/yr** before fees/platform costs.")
+        elif mc_forecast_mode == "forward":
+            st.info(f"Monte Carlo paths will be shifted so their annualised nominal return is anchored near **{forward_expected_return_annual*100:.2f}%/yr** before fees/platform costs. Historical shape and volatility clustering are preserved, but the median return assumption is forward-looking.")
     st.markdown('</div>', unsafe_allow_html=True)
 
     try:
@@ -2371,6 +2409,7 @@ def main() -> None:
                 contribution_growth_mode,
                 contribution_growth_annual,
                 extra_tracking_drag_annual,
+                cape_matching_strength,
             )
         except ValueError as exc:
             st.warning(f"Monte Carlo could not run: {exc}")
@@ -2461,6 +2500,7 @@ def main() -> None:
                     cape_matching_strength,
                     fair_cape if np.isfinite(fair_cape) else float(cape_diag.get("median_cape", 18.0)),
                     cape_sensitivity if np.isfinite(cape_sensitivity) else 0.06,
+                    expected_inflation_annual,
                     int(calibration_start_year),
                     int(calibration_step),
                 )
