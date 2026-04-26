@@ -1760,7 +1760,7 @@ def build_horizon_chart(summary_df: pd.DataFrame, currency_symbol: str) -> go.Fi
         legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
         margin=dict(l=72, r=28, t=64, b=98),
     )
-    return _chart_layout(fig, "Ending wealth across horizons", height=600)
+    return _chart_layout(fig, "Ending wealth across horizons", height=610)
 
 
 
@@ -1821,7 +1821,7 @@ def build_monte_carlo_comparison_chart(historical_result: HistoricalSimulationRe
     )
     fig.update_xaxes(title_text=f"Final wealth ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
     fig.update_yaxes(title_text="Count")
-    return _chart_layout(fig, f"Historical vs Monte Carlo · {historical_result.years} years", height=600)
+    return _chart_layout(fig, f"Historical vs Monte Carlo · {historical_result.years} years", height=610)
 
 
 def build_calibration_chart(calibration_df: pd.DataFrame, currency_symbol: str) -> go.Figure:
@@ -2430,8 +2430,8 @@ def main() -> None:
     summary_df = pd.DataFrame([{"years": r.years, **r.stats.to_dict()} for r in horizon_results])
     primary = next(r for r in horizon_results if r.years == int(featured_horizon))
 
-    # Run Monte Carlo before drawing the main dashboard so the Historical vs Monte Carlo
-    # chart can be shown in the first chart position.
+    # Run Monte Carlo before the dashboard so the Historical vs Monte Carlo chart
+    # can sit side by side with the Ending wealth across horizons chart.
     mc_result = None
     mc_warning = None
     if enable_monte_carlo:
@@ -2462,18 +2462,28 @@ def main() -> None:
         except ValueError as exc:
             mc_warning = f"Monte Carlo could not run: {exc}"
 
-    st.markdown('<div class="section-title"><h2>Dashboard overview</h2></div><div class="section-subtitle">Key graphs are shown side by side: Historical vs Monte Carlo on the left and Ending wealth across horizons on the right.</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="section-title"><h2>Dashboard overview</h2></div>'
+        '<div class="section-subtitle">Main view: Historical vs Monte Carlo and Ending wealth across horizons are now shown side by side.</div>',
+        unsafe_allow_html=True,
+    )
     render_metric_cards(primary.stats, currency_symbol, target_wealth)
 
-    left, right = st.columns([1.0, 1.0])
+    left, right = st.columns([1.05, 1.0])
     with left:
         st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
         if mc_result is not None:
-            st.plotly_chart(build_monte_carlo_comparison_chart(primary, mc_result, currency_symbol, target_wealth), width="stretch", theme=None)
+            st.plotly_chart(
+                build_monte_carlo_comparison_chart(primary, mc_result, currency_symbol, target_wealth),
+                width="stretch",
+                theme=None,
+            )
         else:
             st.plotly_chart(build_distribution_chart(primary, currency_symbol, target_wealth), width="stretch", theme=None)
-            if enable_monte_carlo and mc_warning:
-                st.caption("Historical vs Monte Carlo could not be shown, so the historical ending wealth distribution is shown here instead.")
+            if enable_monte_carlo:
+                st.caption(mc_warning or "Historical vs Monte Carlo could not be shown, so the historical ending wealth distribution is shown instead.")
+            else:
+                st.caption("Enable Monte Carlo in the sidebar to show Historical vs Monte Carlo here.")
         st.markdown('</div>', unsafe_allow_html=True)
     with right:
         st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
@@ -2481,19 +2491,12 @@ def main() -> None:
         st.markdown('</div>', unsafe_allow_html=True)
 
     if enable_monte_carlo:
-        st.markdown('<div class="section-title"><h2>Forecast-conditioned Monte Carlo study</h2></div><div class="section-subtitle">Synthetic paths for the featured horizon. The simulation resamples contiguous historical blocks and can optionally apply forward-return, CAPE/valuation, contribution-growth and tracking-drag assumptions.</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title"><h2>Forecast-conditioned Monte Carlo study</h2></div><div class="section-subtitle">Synthetic paths for the featured horizon. The main Historical vs Monte Carlo chart is shown above next to the horizon chart.</div>', unsafe_allow_html=True)
         if mc_result is None:
             st.warning(mc_warning or "Monte Carlo could not run.")
         else:
             render_monte_carlo_metric_cards(mc_result, currency_symbol, target_wealth)
-
-            # Swapped with the main dashboard: this section now shows the ending wealth
-            # distribution where the Historical vs Monte Carlo chart used to be.
-            st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
-            st.plotly_chart(build_distribution_chart(primary, currency_symbol, target_wealth), width="stretch", theme=None)
-            st.markdown('</div>', unsafe_allow_html=True)
-
-            st.markdown('<div class="section-card"><div class="section-title"><h2>Historical vs Monte Carlo comparison</h2></div><div class="section-subtitle">Monte Carlo results are not exact future probabilities. They are stress-tested synthetic paths drawn from the selected historical return sample.</div>', unsafe_allow_html=True)
+            st.markdown('<div class="section-card"><div class="section-title"><h2>Historical vs Monte Carlo comparison table</h2></div><div class="section-subtitle">Monte Carlo results are not exact future probabilities. They are stress-tested synthetic paths drawn from the selected historical return sample.</div>', unsafe_allow_html=True)
             mc_compare_df = make_monte_carlo_comparison_table(primary.stats, mc_result.stats, currency_symbol, target_wealth)
             st.dataframe(mc_compare_df, width="stretch", hide_index=True, height=485)
             mc_export = pd.DataFrame({
@@ -2510,6 +2513,9 @@ def main() -> None:
                 mime="text/csv",
             )
             st.markdown('</div>', unsafe_allow_html=True)
+
+            with st.expander("Show historical ending wealth distribution", expanded=False):
+                st.plotly_chart(build_distribution_chart(primary, currency_symbol, target_wealth), width="stretch", theme=None)
 
     if run_calibration:
         st.markdown(
