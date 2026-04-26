@@ -144,8 +144,8 @@ def inject_css() -> None:
     st.markdown("""
     <style>
         :root {
-            --sidebar-width: 26rem;
-            --sidebar-width-mobile: 21rem;
+            --sidebar-width: 34rem;
+            --sidebar-width-mobile: 24rem;
             --bg: #050816;
             --bg-2: #0b1220;
             --panel: rgba(15, 23, 42, 0.86);
@@ -287,6 +287,38 @@ def inject_css() -> None:
         section[data-testid="stSidebar"] .stSlider,
         section[data-testid="stSidebar"] .stMultiSelect {
             max-width: 100% !important;
+        }
+
+
+
+        /* Extra-wide sidebar: prevent horizontal scroll while keeping native Streamlit alignment. */
+        section[data-testid="stSidebar"],
+        div[data-testid="stSidebar"],
+        aside[data-testid="stSidebar"],
+        section[data-testid="stSidebar"] > div,
+        div[data-testid="stSidebarContent"],
+        [data-testid="stSidebarUserContent"] {
+            overflow-x: hidden !important;
+            box-sizing: border-box !important;
+        }
+
+        section[data-testid="stSidebar"] *,
+        div[data-testid="stSidebar"] *,
+        [data-testid="stSidebarUserContent"] * {
+            box-sizing: border-box !important;
+            max-width: 100% !important;
+        }
+
+        section[data-testid="stSidebar"] [data-baseweb="select"],
+        section[data-testid="stSidebar"] [data-baseweb="input"],
+        section[data-testid="stSidebar"] [data-baseweb="slider"],
+        section[data-testid="stSidebar"] [data-testid="stNumberInput"],
+        section[data-testid="stSidebar"] [data-testid="stTextInput"],
+        section[data-testid="stSidebar"] [data-testid="stSelectbox"],
+        section[data-testid="stSidebar"] [data-testid="stSlider"],
+        section[data-testid="stSidebar"] [data-testid="stMultiSelect"] {
+            min-width: 0 !important;
+            width: 100% !important;
         }
 
         .block-container {
