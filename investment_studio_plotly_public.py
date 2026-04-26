@@ -2366,10 +2366,10 @@ def main() -> None:
         st.caption(
             "Tests the forecast engine as if each past calibration date was 'today', then compares the modelled range with realised future outcomes."
         )
-        run_calibration = st.checkbox("Run calibration", value=False, help="Can take a little longer because it runs Monte Carlo repeatedly over past forecast dates.")
+        run_calibration = st.checkbox("Run calibration", value=True, help="Can take a little longer because it runs Monte Carlo repeatedly over past forecast dates.")
         cal_horizon_min = 5 if int(max_possible_years) >= 5 else 2
         cal_horizon_max = max(cal_horizon_min, min(30, int(max_possible_years)))
-        cal_horizon_default = min(10, cal_horizon_max)
+        cal_horizon_default = min(1, cal_horizon_max)
         if cal_horizon_default < cal_horizon_min:
             cal_horizon_default = cal_horizon_min
         calibration_horizon = st.slider("Calibration horizon (years)", min_value=cal_horizon_min, max_value=cal_horizon_max, value=cal_horizon_default, step=1)
