@@ -173,34 +173,95 @@ def inject_css() -> None:
             color: var(--text) !important;
         }
 
-        /* Keep Streamlit's header/collapsed-sidebar control available.
-           Do not use display:none here, otherwise if the sidebar is collapsed
-           the user may lose the visible control used to bring it back. */
+        /* Sidebar safety fix.
+           Keep Streamlit controls available, but more importantly force the
+           sidebar itself to remain visible even if the browser has remembered
+           a previous collapsed state. */
         header[data-testid="stHeader"] {
             display: block !important;
-            height: 2.55rem !important;
+            height: 2.75rem !important;
             background: transparent !important;
             pointer-events: auto !important;
+            z-index: 999990 !important;
         }
+
         div[data-testid="stToolbar"] {visibility: hidden;}
-        [data-testid="collapsedControl"] {
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+
+        section[data-testid="stSidebar"],
+        div[data-testid="stSidebar"],
+        aside[data-testid="stSidebar"] {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            transform: translateX(0) !important;
+            left: 0 !important;
+            min-width: 23rem !important;
+            width: 23rem !important;
+            max-width: 23rem !important;
+            z-index: 999980 !important;
+            pointer-events: auto !important;
+        }
+
+        section[data-testid="stSidebar"] > div,
+        div[data-testid="stSidebarContent"],
+        [data-testid="stSidebarUserContent"] {
+            display: block !important;
+            visibility: visible !important;
+            opacity: 1 !important;
+            width: 23rem !important;
+            max-width: 23rem !important;
+            transform: none !important;
+            pointer-events: auto !important;
+        }
+
+        /* Streamlit has used different test ids across versions. Keep both
+           possible collapsed controls visible as a fallback. */
+        [data-testid="collapsedControl"],
+        [data-testid="stSidebarCollapsedControl"] {
             display: flex !important;
             visibility: visible !important;
             opacity: 1 !important;
             position: fixed !important;
             top: .65rem !important;
             left: .65rem !important;
-            z-index: 999999 !important;
-            background: rgba(15, 23, 42, .94) !important;
-            border: 1px solid rgba(125, 211, 252, .38) !important;
+            z-index: 1000000 !important;
+            background: rgba(15, 23, 42, .96) !important;
+            border: 1px solid rgba(125, 211, 252, .45) !important;
             border-radius: 999px !important;
             box-shadow: 0 10px 32px rgba(0,0,0,.42) !important;
         }
-        [data-testid="collapsedControl"] button {
+        [data-testid="collapsedControl"] button,
+        [data-testid="stSidebarCollapsedControl"] button {
             color: #f8fafc !important;
         }
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
+
+        /* If the app was loaded while the sidebar was collapsed, Streamlit can
+           leave the main content flush-left. This margin prevents overlap. */
+        @media (min-width: 900px) {
+            div[data-testid="stAppViewContainer"] > .main,
+            section.main,
+            .stMain {
+                margin-left: 23rem !important;
+            }
+        }
+
+        @media (max-width: 899px) {
+            section[data-testid="stSidebar"],
+            div[data-testid="stSidebar"],
+            aside[data-testid="stSidebar"] {
+                min-width: 20rem !important;
+                width: 20rem !important;
+                max-width: 20rem !important;
+            }
+            section[data-testid="stSidebar"] > div,
+            div[data-testid="stSidebarContent"],
+            [data-testid="stSidebarUserContent"] {
+                width: 20rem !important;
+                max-width: 20rem !important;
+            }
+        }
 
         .block-container {
             padding-top: 1.15rem;
@@ -2390,7 +2451,7 @@ def main() -> None:
         st.caption(
             "Tests the forecast engine as if each past calibration date was 'today', then compares the modelled range with realised future outcomes."
         )
-        run_calibration = st.checkbox("Run calibration", value=True, help="Can take a little longer because it runs Monte Carlo repeatedly over past forecast dates.")
+        run_calibration = st.checkbox("Run calibration", value=False, help="Can take a little longer because it runs Monte Carlo repeatedly over past forecast dates.")
         cal_horizon_min = 1
         cal_horizon_max = max(cal_horizon_min, min(30, int(max_possible_years)))
         cal_horizon_default = min(1, cal_horizon_max)
