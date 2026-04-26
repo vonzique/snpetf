@@ -2237,8 +2237,8 @@ def main() -> None:
         st.error("Not enough data is available for a 2-year rolling study with the current filters.")
         st.stop()
 
-    default_min = min(8, max_possible_years)
-    default_max = min(33, max_possible_years)
+    default_min = min(30, max_possible_years)
+    default_max = min(40, max_possible_years)
     if default_min > default_max:
         default_min = max(2, default_max)
 
