@@ -832,34 +832,6 @@ def annualised_geometric_return(returns: pd.Series | np.ndarray) -> float:
     return float(np.prod(1.0 + arr) ** (12.0 / len(arr)) - 1.0)
 
 
-def real_to_nominal_return(real_return: float, inflation_rate: float) -> float:
-    """Convert an annual real return into an annual nominal return.
-
-    CAPE/Shiller-style valuation forecasts are best interpreted as real,
-    inflation-adjusted return anchors. The simulation engine projects nominal
-    account balances, so CAPE-mode forecasts add expected inflation back before
-    shifting Monte Carlo path returns.
-    """
-    if not np.isfinite(real_return):
-        return float("nan")
-    if not np.isfinite(inflation_rate):
-        inflation_rate = 0.0
-    return float((1.0 + float(real_return)) * (1.0 + float(inflation_rate)) - 1.0)
-
-
-def annualised_real_geometric_return(returns_df: pd.DataFrame) -> float:
-    """Annualised real return using monthly nominal returns and CPI inflation."""
-    if "return" not in returns_df.columns or "monthly_inflation" not in returns_df.columns:
-        return annualised_geometric_return(returns_df.get("return", pd.Series(dtype=float)))
-    nominal = pd.to_numeric(returns_df["return"], errors="coerce")
-    inflation = pd.to_numeric(returns_df["monthly_inflation"], errors="coerce")
-    valid = nominal.notna() & inflation.notna() & ((1.0 + inflation) > 0)
-    if not valid.any():
-        return annualised_geometric_return(nominal)
-    real_monthly = (1.0 + nominal.loc[valid]) / (1.0 + inflation.loc[valid]) - 1.0
-    return annualised_geometric_return(real_monthly)
-
-
 def get_latest_cape_value(returns_df: pd.DataFrame) -> float:
     if "cape" not in returns_df.columns:
         return float("nan")
@@ -1531,7 +1503,6 @@ def run_forecast_calibration(
     cape_matching_strength: float,
     fair_cape: float,
     cape_sensitivity: float,
-    expected_inflation_annual: float = 0.025,
     start_year: int = 1950,
     step_years: int = 5,
 ) -> pd.DataFrame:
@@ -1567,10 +1538,9 @@ def run_forecast_calibration(
         if forecast_mode == "forward":
             target_return_for_test = forward_expected_return_annual
         elif forecast_mode == "cape":
-            train_real_geo = annualised_real_geometric_return(train_df)
+            train_geo = annualised_geometric_return(train_df.loc[train_df["return"].notna(), "return"])
             train_cape = get_latest_cape_value(train_df)
-            target_real_return = valuation_adjusted_expected_return(train_real_geo, train_cape, fair_cape, cape_sensitivity)
-            target_return_for_test = real_to_nominal_return(target_real_return, expected_inflation_annual)
+            target_return_for_test = valuation_adjusted_expected_return(train_geo, train_cape, fair_cape, cape_sensitivity)
 
         seed = int(rng_master.integers(0, 1_000_000_000))
         mc = simulate_monte_carlo_block_bootstrap(
@@ -2116,7 +2086,7 @@ This is the most important forecasting control.
 |---|---|---|
 | Historical bootstrap, no return anchor | Uses sampled historical returns as-is | Baseline historical stress test |
 | Forward-return adjusted | Shifts paths so their average return matches your expected return | Planning with conservative/base/optimistic assumptions |
-| CAPE / valuation-adjusted | Estimates a real return from CAPE, then adds expected inflation to create the nominal account-growth anchor | When market valuation is materially high or low |
+| CAPE / valuation-adjusted | Reduces or increases expected return based on current CAPE vs fair CAPE | When market valuation is materially high or low |
 
 For planning, run at least three forward-return cases:
 
@@ -2215,23 +2185,25 @@ def main() -> None:
     </div>
     """, unsafe_allow_html=True)
 
-    render_how_to_use_guide()
-
-    st.markdown('<div class="section-card"><div class="section-title"><h2>Study settings</h2></div><div class="section-subtitle">The app now uses only the latest embedded S&amp;P 500 dataset. Choose the economic regime you want the study to start from; the simulation then runs from that start year through the latest available month.</div>', unsafe_allow_html=True)
+    with st.sidebar:
+        st.title("⚙️ Settings")
+        st.caption("All study inputs are now in this sidebar. The main page is reserved for results, charts and tables.")
+        render_how_to_use_guide()
 
     selected_dataset = LATEST_DATASET_LABEL
     raw_base_returns_df = load_returns_dataset(selected_dataset)
     latest_year = int(raw_base_returns_df["date"].max().year)
 
-    top_a, top_b, top_c = st.columns([1.3, 0.8, 1.1])
-    selected_regime_label = top_a.selectbox(
-        "Start study from",
-        REGIME_OPTIONS,
-        index=0,
-        help="Example: choosing Stagflation starts the rolling study from 1973 and uses all monthly data from 1973 through the latest available month.",
-    )
+    with st.sidebar.expander("1) Study settings", expanded=True):
+        selected_regime_label = st.selectbox(
+            "Start study from",
+            REGIME_OPTIONS,
+            index=0,
+            help="Example: choosing Stagflation starts the rolling study from 1973 and uses all monthly data from 1973 through the latest available month.",
+        )
+        output_currency = st.selectbox("Output currency", ["GBP", "USD"], index=0)
+
     regime_meta = get_regime_metadata(selected_regime_label, latest_year)
-    output_currency = top_b.selectbox("Output currency", ["GBP", "USD"], index=0)
     currency_symbol = CURRENCY_CONFIG[output_currency]["symbol"]
     currency_label = CURRENCY_CONFIG[output_currency]["label"]
 
@@ -2240,18 +2212,24 @@ def main() -> None:
     returns_df, cpi_diag = add_historical_cpi(returns_df, output_currency)
     returns_df, cape_diag = attach_historical_cape(returns_df)
 
-    with top_c:
+    with st.sidebar.expander("2) Dataset and data filters", expanded=True):
         st.markdown(
             f"""
-            <div class="mini-card" style="margin-top: 0.15rem;">
-                <div class="mini-label">Dataset</div>
-                <div class="mini-value">Latest 1871–{latest_year}</div>
-                <div class="mini-foot">Active sample: {base_returns_df['date'].min().strftime('%Y-%m')} to {base_returns_df['date'].max().strftime('%Y-%m')}</div>
-            </div>
-            """,
-            unsafe_allow_html=True,
+            **Dataset:** Latest 1871–{latest_year}  
+            **Active sample:** {base_returns_df['date'].min().strftime('%Y-%m')} to {base_returns_df['date'].max().strftime('%Y-%m')}  
+            **Selected start period:** {regime_meta['display']}
+            """
         )
-        only_full_fx_windows = st.checkbox("Use only full-FX-covered windows", value=(output_currency != "USD"), disabled=(output_currency == "USD"), help="Recommended for GBP. It avoids mixing true local-currency periods with older periods where FX data is missing.")
+        only_full_fx_windows = st.checkbox(
+            "Use only full-FX-covered windows",
+            value=(output_currency != "USD"),
+            disabled=(output_currency == "USD"),
+            help="Recommended for GBP. It avoids mixing true local-currency periods with older periods where FX data is missing.",
+        )
+        st.caption(
+            f"Real-value method: historical {cpi_diag['country_code']} CPI "
+            f"({cpi_diag['covered_months']:,}/{cpi_diag['total_months']:,} months covered)."
+        )
 
     max_months_available = max_consecutive_true(returns_df["fx_covered"]) if only_full_fx_windows else len(returns_df)
     max_possible_years = max(1, max_months_available // 12)
@@ -2264,86 +2242,166 @@ def main() -> None:
     if default_min > default_max:
         default_min = max(2, default_max)
 
-    a, b, c = st.columns([1, 1, 1.2])
-    initial_investment = a.number_input(f"Initial investment ({currency_symbol})", min_value=0.0, value=75000.0, step=5000.0)
-    monthly_contribution = b.number_input(f"Monthly contribution ({currency_symbol})", min_value=0.0, value=0.0, step=100.0)
-    year_range = c.slider("Investment horizon range (years)", min_value=2, max_value=int(max_possible_years), value=(int(default_min), int(default_max)))
+    with st.sidebar.expander("3) Investment inputs", expanded=True):
+        initial_investment = st.number_input(f"Initial investment ({currency_symbol})", min_value=0.0, value=75000.0, step=5000.0)
+        monthly_contribution = st.number_input(f"Monthly contribution ({currency_symbol})", min_value=0.0, value=0.0, step=100.0)
+        year_range = st.slider(
+            "Investment horizon range (years)",
+            min_value=2,
+            max_value=int(max_possible_years),
+            value=(int(default_min), int(default_max)),
+        )
+        featured_horizon = st.slider(
+            "Featured horizon",
+            min_value=int(year_range[0]),
+            max_value=int(year_range[1]),
+            value=int(year_range[1]),
+        )
+        target_wealth = st.number_input(f"Target wealth ({currency_symbol}, optional)", min_value=0.0, value=0.0, step=10000.0)
 
-    with st.expander("Advanced assumptions", expanded=False):
-        e, f, g, h = st.columns(4)
-        fund_fee_annual = e.number_input("Fund fee (% / year)", min_value=0.0, value=0.07, step=0.01) / 100.0
-        platform_fee_annual = f.number_input("Platform fee (% / year)", min_value=0.0, value=0.15, step=0.01) / 100.0
-        platform_fee_monthly_min = g.number_input(f"Platform minimum ({currency_symbol} / month)", min_value=0.0, value=4.0, step=0.5)
-        platform_fee_annual_cap = h.number_input(f"Platform cap ({currency_symbol} / year, 0 = no cap)", min_value=0.0, value=375.0, step=25.0)
-
-        i, j, k, l = st.columns(4)
-        contribution_timing_label = i.selectbox("Contribution timing", list(CONTRIBUTION_TIMING_OPTIONS.keys()), index=1)
+    with st.sidebar.expander("4) Fees, drag and contributions", expanded=False):
+        fund_fee_annual = st.number_input("Fund fee (% / year)", min_value=0.0, value=0.07, step=0.01) / 100.0
+        platform_fee_annual = st.number_input("Platform fee (% / year)", min_value=0.0, value=0.15, step=0.01) / 100.0
+        platform_fee_monthly_min = st.number_input(f"Platform minimum ({currency_symbol} / month)", min_value=0.0, value=4.0, step=0.5)
+        platform_fee_annual_cap = st.number_input(f"Platform cap ({currency_symbol} / year, 0 = no cap)", min_value=0.0, value=375.0, step=25.0)
+        contribution_timing_label = st.selectbox("Contribution timing", list(CONTRIBUTION_TIMING_OPTIONS.keys()), index=1)
         contribution_timing = CONTRIBUTION_TIMING_OPTIONS[contribution_timing_label]
-        contribution_growth_label = j.selectbox("Contribution growth", list(CONTRIBUTION_GROWTH_OPTIONS.keys()), index=0, help="Use inflation-linked contributions if you want the monthly amount to grow with purchasing power rather than stay fixed in nominal terms.")
+        contribution_growth_label = st.selectbox(
+            "Contribution growth",
+            list(CONTRIBUTION_GROWTH_OPTIONS.keys()),
+            index=0,
+            help="Use inflation-linked contributions if you want the monthly amount to grow with purchasing power rather than stay fixed in nominal terms.",
+        )
         contribution_growth_mode = CONTRIBUTION_GROWTH_OPTIONS[contribution_growth_label]
-        contribution_growth_annual = k.number_input("Custom contribution growth (% / year)", min_value=-20.0, max_value=30.0, value=2.5, step=0.25) / 100.0
-        extra_tracking_drag_annual = l.number_input("Extra tracking drag (% / year)", min_value=0.0, max_value=2.0, value=0.15, step=0.05, help="Extra annual drag for tracking difference, withholding-tax leakage, spread/slippage or implementation friction.") / 100.0
+        contribution_growth_annual = st.number_input("Custom contribution growth (% / year)", min_value=-20.0, max_value=30.0, value=2.5, step=0.25) / 100.0
+        extra_tracking_drag_annual = st.number_input(
+            "Extra tracking drag (% / year)",
+            min_value=0.0,
+            max_value=2.0,
+            value=0.15,
+            step=0.05,
+            help="Extra annual drag for tracking difference, withholding-tax leakage, spread/slippage or implementation friction.",
+        ) / 100.0
+        st.caption(f"All-in annual drag before platform fee: {(fund_fee_annual + extra_tracking_drag_annual) * 100:.2f}%/yr")
 
-        q, r, s_col, t = st.columns(4)
-        q.markdown(f"**Real-value method**  \nHistorical {cpi_diag['country_code']} CPI  \n{cpi_diag['covered_months']:,}/{cpi_diag['total_months']:,} months covered")
-        target_wealth = r.number_input(f"Target wealth ({currency_symbol}, optional)", min_value=0.0, value=0.0, step=10000.0)
-        featured_horizon = s_col.slider("Featured horizon", min_value=int(year_range[0]), max_value=int(year_range[1]), value=int(year_range[1]))
-        t.markdown(f"**All-in annual drag**  \nFund + extra drag  \n{(fund_fee_annual + extra_tracking_drag_annual) * 100:.2f}%/yr before platform fee")
+    active_geo_return = annualised_geometric_return(returns_df.loc[returns_df["return"].notna(), "return"])
+    forward_expected_return_annual = active_geo_return
+    latest_cape = cape_diag.get("latest_cape", float("nan"))
+    latest_cape_date = cape_diag.get("latest_cape_date", None)
+    current_cape = fair_cape = cape_sensitivity = float("nan")
+    cape_matching_strength = 1.0
 
-        st.markdown("---")
-        st.markdown("#### Monte Carlo forecast controls")
-        m, n, o, p_col = st.columns(4)
-        enable_monte_carlo = m.checkbox("Run Monte Carlo", value=True, help="Runs a block-bootstrap Monte Carlo for the featured horizon using the selected historical sample and assumptions.")
-        mc_simulations = n.number_input("Monte Carlo paths", min_value=100, max_value=20000, value=3000, step=100)
-        mc_block_months = o.slider("Bootstrap block length (months)", min_value=1, max_value=60, value=12, help="Longer blocks preserve more market clustering; 12 months is a reasonable default for annual regime behaviour.")
-        mc_seed = p_col.number_input("Monte Carlo seed", min_value=0, max_value=999999, value=42, step=1)
-
-        u, v, w = st.columns([1.1, 1.1, 1.2])
-        mc_sample_pool_label = u.selectbox("Monte Carlo sample pool", list(MC_SAMPLE_POOL_OPTIONS.keys()), index=0, help="Narrows the bootstrap pool so the forecast can be conditioned on modern, high-inflation or stress periods.")
+    with st.sidebar.expander("5) Monte Carlo forecast controls", expanded=False):
+        enable_monte_carlo = st.checkbox(
+            "Run Monte Carlo",
+            value=True,
+            help="Runs a block-bootstrap Monte Carlo for the featured horizon using the selected historical sample and assumptions.",
+        )
+        mc_simulations = st.number_input("Monte Carlo paths", min_value=100, max_value=20000, value=3000, step=100)
+        mc_block_months = st.slider(
+            "Bootstrap block length (months)",
+            min_value=1,
+            max_value=60,
+            value=12,
+            help="Longer blocks preserve more market clustering; 12 months is a reasonable default for annual regime behaviour.",
+        )
+        mc_seed = st.number_input("Monte Carlo seed", min_value=0, max_value=999999, value=42, step=1)
+        mc_sample_pool_label = st.selectbox(
+            "Monte Carlo sample pool",
+            list(MC_SAMPLE_POOL_OPTIONS.keys()),
+            index=0,
+            help="Narrows the bootstrap pool so the forecast can be conditioned on modern, high-inflation or stress periods.",
+        )
         mc_sample_pool_mode = MC_SAMPLE_POOL_OPTIONS[mc_sample_pool_label]
-        mc_forecast_mode_label = v.selectbox("Forecast return anchor", list(MC_FORECAST_MODE_OPTIONS.keys()), index=0, help="Historical mode leaves sampled returns unchanged. Forward/CAPE modes shift path log returns to match an expected annual return.")
+        mc_forecast_mode_label = st.selectbox(
+            "Forecast return anchor",
+            list(MC_FORECAST_MODE_OPTIONS.keys()),
+            index=0,
+            help="Historical mode leaves sampled returns unchanged. Forward/CAPE modes shift path log returns to match an expected annual return.",
+        )
         mc_forecast_mode = MC_FORECAST_MODE_OPTIONS[mc_forecast_mode_label]
 
-        active_geo_return = annualised_geometric_return(returns_df.loc[returns_df["return"].notna(), "return"])
-        active_real_geo_return = annualised_real_geometric_return(returns_df)
-        forward_expected_return_annual = active_geo_return
-        cape_expected_real_return_annual = float("nan")
-        expected_inflation_annual = 0.025
-        latest_cape = cape_diag.get("latest_cape", float("nan"))
-        latest_cape_date = cape_diag.get("latest_cape_date", None)
-        current_cape = fair_cape = cape_sensitivity = float("nan")
-        cape_matching_strength = 1.0
-        with w:
-            if mc_forecast_mode == "forward":
-                forward_expected_return_annual = st.number_input("Expected nominal return (% / year)", min_value=-20.0, max_value=25.0, value=6.0, step=0.25) / 100.0
-                if mc_sample_pool_mode == "cape_conditioned":
-                    cape_matching_strength = st.slider("CAPE matching strength", min_value=0.0, max_value=3.0, value=1.0, step=0.1, help="Higher values sample more heavily from historical months whose CAPE was similar to the latest available CAPE.")
-            elif mc_forecast_mode == "cape":
-                c1, c2, c3 = st.columns(3)
-                default_cape = float(latest_cape) if np.isfinite(latest_cape) else 30.0
-                current_cape = c1.number_input("Current CAPE", min_value=1.0, max_value=100.0, value=default_cape, step=0.5, help="Defaults to the latest embedded Shiller/Yale CAPE value where available.")
-                fair_default = float(cape_diag.get("median_cape", 18.0)) if np.isfinite(cape_diag.get("median_cape", float("nan"))) else 18.0
-                fair_cape = c2.number_input("Fair CAPE", min_value=1.0, max_value=100.0, value=fair_default, step=0.5)
-                cape_sensitivity = c3.number_input("CAPE sensitivity", min_value=0.0, max_value=0.20, value=0.06, step=0.005, help="Higher values penalise expensive valuations more strongly.")
-                expected_inflation_annual = st.number_input("Expected inflation to add back (% / year)", min_value=-5.0, max_value=20.0, value=2.5, step=0.1, help="CAPE forecasts are treated as real returns. This converts them into nominal account-growth assumptions for the Monte Carlo engine.") / 100.0
-                cape_matching_strength = st.slider("CAPE matching strength", min_value=0.0, max_value=3.0, value=1.0, step=0.1, help="Used when the CAPE-conditioned sample pool is selected.")
-                cape_expected_real_return_annual = valuation_adjusted_expected_return(active_real_geo_return, current_cape, fair_cape, cape_sensitivity)
-                forward_expected_return_annual = real_to_nominal_return(cape_expected_real_return_annual, expected_inflation_annual)
-                st.caption(f"CAPE real-return anchor: {cape_expected_real_return_annual*100:.2f}%/yr. Nominal anchor after adding inflation: {forward_expected_return_annual*100:.2f}%/yr.")
+        if mc_forecast_mode == "forward":
+            forward_expected_return_annual = st.number_input("Expected nominal return (% / year)", min_value=-20.0, max_value=25.0, value=6.0, step=0.25) / 100.0
+            if mc_sample_pool_mode == "cape_conditioned":
+                cape_matching_strength = st.slider(
+                    "CAPE matching strength",
+                    min_value=0.0,
+                    max_value=3.0,
+                    value=1.0,
+                    step=0.1,
+                    help="Higher values sample more heavily from historical months whose CAPE was similar to the latest available CAPE.",
+                )
+        elif mc_forecast_mode == "cape":
+            default_cape = float(latest_cape) if np.isfinite(latest_cape) else 30.0
+            current_cape = st.number_input("Current CAPE", min_value=1.0, max_value=100.0, value=default_cape, step=0.5, help="Defaults to the latest embedded Shiller/Yale CAPE value where available.")
+            fair_default = float(cape_diag.get("median_cape", 18.0)) if np.isfinite(cape_diag.get("median_cape", float("nan"))) else 18.0
+            fair_cape = st.number_input("Fair CAPE", min_value=1.0, max_value=100.0, value=fair_default, step=0.5)
+            cape_sensitivity = st.number_input("CAPE sensitivity", min_value=0.0, max_value=0.20, value=0.06, step=0.005, help="Higher values penalise expensive valuations more strongly.")
+            cape_matching_strength = st.slider("CAPE matching strength", min_value=0.0, max_value=3.0, value=1.0, step=0.1, help="Used when the CAPE-conditioned sample pool is selected.")
+            forward_expected_return_annual = valuation_adjusted_expected_return(active_geo_return, current_cape, fair_cape, cape_sensitivity)
+            if latest_cape_date is not None and pd.notna(latest_cape_date):
+                st.caption(f"Latest embedded CAPE: {latest_cape:.2f} at {pd.to_datetime(latest_cape_date).strftime('%Y-%m')}.")
+        else:
+            st.caption(f"Historical anchor: active-sample annualised return {active_geo_return*100:.2f}%/yr")
+            if mc_sample_pool_mode == "cape_conditioned":
+                cape_matching_strength = st.slider(
+                    "CAPE matching strength",
+                    min_value=0.0,
+                    max_value=3.0,
+                    value=1.0,
+                    step=0.1,
+                    help="Higher values sample more heavily from historical months whose CAPE was similar to the latest available CAPE.",
+                )
                 if latest_cape_date is not None and pd.notna(latest_cape_date):
-                    st.caption(f"Latest embedded CAPE: {latest_cape:.2f} at {pd.to_datetime(latest_cape_date).strftime('%Y-%m')}.")
-            else:
-                st.markdown(f"**Historical anchor**  \nActive-sample nominal annualised return  \n{active_geo_return*100:.2f}%/yr")
-                if mc_sample_pool_mode == "cape_conditioned":
-                    cape_matching_strength = st.slider("CAPE matching strength", min_value=0.0, max_value=3.0, value=1.0, step=0.1, help="Higher values sample more heavily from historical months whose CAPE was similar to the latest available CAPE.")
-                    if latest_cape_date is not None and pd.notna(latest_cape_date):
-                        st.caption(f"CAPE-conditioned pool uses latest embedded CAPE {latest_cape:.2f} from {pd.to_datetime(latest_cape_date).strftime('%Y-%m')}.")
+                    st.caption(f"CAPE-conditioned pool uses latest embedded CAPE {latest_cape:.2f} from {pd.to_datetime(latest_cape_date).strftime('%Y-%m')}.")
 
-        if mc_forecast_mode == "cape":
-            st.info(f"CAPE mode treats the valuation-adjusted forecast as a **real** return ({cape_expected_real_return_annual*100:.2f}%/yr) and adds expected inflation ({expected_inflation_annual*100:.2f}%/yr), giving a **nominal** Monte Carlo anchor of **{forward_expected_return_annual*100:.2f}%/yr** before fees/platform costs.")
-        elif mc_forecast_mode == "forward":
-            st.info(f"Monte Carlo paths will be shifted so their annualised nominal return is anchored near **{forward_expected_return_annual*100:.2f}%/yr** before fees/platform costs. Historical shape and volatility clustering are preserved, but the median return assumption is forward-looking.")
-    st.markdown('</div>', unsafe_allow_html=True)
+        if mc_forecast_mode in {"forward", "cape"}:
+            st.info(
+                f"Monte Carlo paths will be shifted so their annualised return is anchored near "
+                f"{forward_expected_return_annual*100:.2f}%/yr before fees/platform costs."
+            )
+
+    with st.sidebar.expander("6) Forecast calibration / backtest", expanded=False):
+        st.caption(
+            "Tests the forecast engine as if each past calibration date was 'today', then compares the modelled range with realised future outcomes."
+        )
+        run_calibration = st.checkbox("Run calibration", value=False, help="Can take a little longer because it runs Monte Carlo repeatedly over past forecast dates.")
+        cal_horizon_min = 5 if int(max_possible_years) >= 5 else 2
+        cal_horizon_max = max(cal_horizon_min, min(30, int(max_possible_years)))
+        cal_horizon_default = min(10, cal_horizon_max)
+        if cal_horizon_default < cal_horizon_min:
+            cal_horizon_default = cal_horizon_min
+        calibration_horizon = st.slider("Calibration horizon (years)", min_value=cal_horizon_min, max_value=cal_horizon_max, value=cal_horizon_default, step=1)
+        calibration_step = st.selectbox("Test frequency", [1, 5, 10], index=1, format_func=lambda x: f"Every {x} year(s)")
+        calibration_paths = st.number_input("Paths per test date", min_value=100, max_value=5000, value=750, step=100)
+        active_start_year = int(returns_df["date"].min().year)
+        active_end_year = int(returns_df["date"].max().year)
+        cal_start_min = active_start_year
+        cal_start_max = max(cal_start_min, active_end_year - int(calibration_horizon))
+        default_cal_start = max(active_start_year + 20, 1950)
+        default_cal_start = min(max(default_cal_start, cal_start_min), cal_start_max)
+        calibration_start_year = st.slider(
+            "First calibration year",
+            min_value=int(cal_start_min),
+            max_value=int(cal_start_max),
+            value=int(default_cal_start),
+            step=1,
+        )
+        st.caption("Good signs: P10-P90 coverage near 80%, actual-above-median near 50%, and median bias near 0%.")
+
+    st.markdown(
+        f"""
+        <div class="section-card">
+            <div class="section-title"><h2>Active configuration</h2></div>
+            <div class="section-subtitle">
+                Settings are now controlled from the left sidebar. Current run: {regime_meta['display']} start, {currency_label},
+                {int(year_range[0])}–{int(year_range[1])} year horizons, featured horizon {int(featured_horizon)} years.
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     try:
         horizon_results = [
@@ -2436,98 +2494,64 @@ def main() -> None:
             )
             st.markdown('</div>', unsafe_allow_html=True)
 
-    with st.expander("Forecast calibration / out-of-sample backtest", expanded=False):
+    if run_calibration:
         st.markdown(
-            "This tests the forecast engine as if each past calibration date was 'today': "
-            "it trains only on data available up to that date, generates a Monte Carlo forecast, "
-            "then compares the forecast range with the actually realised future path."
+            '<div class="section-title"><h2>Forecast calibration / out-of-sample backtest</h2></div>'
+            '<div class="section-subtitle">Calibration controls are in the sidebar. The results below compare forecast ranges with realised future paths.</div>',
+            unsafe_allow_html=True,
         )
-        cal_a, cal_b, cal_c, cal_d = st.columns(4)
-        run_calibration = cal_a.checkbox("Run calibration", value=False, help="Can take a little longer because it runs Monte Carlo repeatedly over past forecast dates.")
-        cal_horizon_min = 5 if int(max_possible_years) >= 5 else 2
-        cal_horizon_max = max(cal_horizon_min, min(30, int(max_possible_years)))
-        cal_horizon_default = min(10, cal_horizon_max)
-        if cal_horizon_default < cal_horizon_min:
-            cal_horizon_default = cal_horizon_min
-        calibration_horizon = cal_b.slider("Calibration horizon (years)", min_value=cal_horizon_min, max_value=cal_horizon_max, value=cal_horizon_default, step=1)
-        calibration_step = cal_c.selectbox("Test frequency", [1, 5, 10], index=1, format_func=lambda x: f"Every {x} year(s)")
-        calibration_paths = cal_d.number_input("Paths per test date", min_value=100, max_value=5000, value=750, step=100)
-
-        cal_e, cal_f = st.columns(2)
-        active_start_year = int(returns_df["date"].min().year)
-        active_end_year = int(returns_df["date"].max().year)
-        cal_start_min = active_start_year
-        cal_start_max = max(cal_start_min, active_end_year - int(calibration_horizon))
-        default_cal_start = max(active_start_year + 20, 1950)
-        default_cal_start = min(max(default_cal_start, cal_start_min), cal_start_max)
-        calibration_start_year = cal_e.slider(
-            "First calibration year",
-            min_value=int(cal_start_min),
-            max_value=int(cal_start_max),
-            value=int(default_cal_start),
-            step=1,
-        )
-        cal_f.markdown(
-            "**Good calibration signs**  \n"
-            "- P10-P90 coverage near 80%  \n"
-            "- Actual above median near 50%  \n"
-            "- Median bias near 0%"
-        )
-
-        if run_calibration:
-            try:
-                calibration_df = run_forecast_calibration(
-                    returns_df,
-                    int(calibration_horizon),
-                    initial_investment,
-                    monthly_contribution,
-                    fund_fee_annual,
-                    platform_fee_annual,
-                    platform_fee_monthly_min,
-                    platform_fee_annual_cap,
-                    contribution_timing,
-                    only_full_fx_windows,
-                    target_wealth,
-                    int(calibration_paths),
-                    int(mc_block_months),
-                    int(mc_seed),
-                    mc_sample_pool_mode,
-                    mc_forecast_mode,
-                    forward_expected_return_annual if mc_forecast_mode == "forward" else None,
-                    contribution_growth_mode,
-                    contribution_growth_annual,
-                    extra_tracking_drag_annual,
-                    cape_matching_strength,
-                    fair_cape if np.isfinite(fair_cape) else float(cape_diag.get("median_cape", 18.0)),
-                    cape_sensitivity if np.isfinite(cape_sensitivity) else 0.06,
-                    expected_inflation_annual,
-                    int(calibration_start_year),
-                    int(calibration_step),
-                )
-                calibration_stats = summarise_calibration(calibration_df)
-            except ValueError as exc:
-                st.warning(f"Calibration could not run: {exc}")
-            else:
-                ca, cb, cc, cd = st.columns(4)
-                ca.metric("Calibration tests", f"{int(calibration_stats['tests']):,}")
-                cb.metric("P10-P90 coverage", fmt_percent(calibration_stats["p10_p90_coverage"]))
-                cc.metric("Actual above median", fmt_percent(calibration_stats["actual_above_median_rate"]))
-                cd.metric("Median bias", fmt_percent(calibration_stats["median_bias"]))
-                st.plotly_chart(build_calibration_chart(calibration_df, currency_symbol), width="stretch", theme=None)
-                display_cal = calibration_df.copy()
-                for col in ["forecast_date", "train_start", "train_end", "actual_end"]:
-                    display_cal[col] = pd.to_datetime(display_cal[col]).dt.strftime("%Y-%m")
-                for col in ["forecast_p10", "forecast_median", "forecast_p90", "actual_final"]:
-                    display_cal[col] = display_cal[col].map(lambda x: fmt_currency(x, currency_symbol))
-                display_cal["actual_vs_median_pct"] = display_cal["actual_vs_median_pct"].map(fmt_percent)
-                display_cal["target_model_share"] = display_cal["target_model_share"].map(fmt_percent)
-                st.dataframe(display_cal, width="stretch", hide_index=True, height=360)
-                st.download_button(
-                    "Download calibration CSV",
-                    calibration_df.to_csv(index=False).encode("utf-8"),
-                    file_name="forecast_calibration_backtest.csv",
-                    mime="text/csv",
-                )
+        try:
+            calibration_df = run_forecast_calibration(
+                returns_df,
+                int(calibration_horizon),
+                initial_investment,
+                monthly_contribution,
+                fund_fee_annual,
+                platform_fee_annual,
+                platform_fee_monthly_min,
+                platform_fee_annual_cap,
+                contribution_timing,
+                only_full_fx_windows,
+                target_wealth,
+                int(calibration_paths),
+                int(mc_block_months),
+                int(mc_seed),
+                mc_sample_pool_mode,
+                mc_forecast_mode,
+                forward_expected_return_annual if mc_forecast_mode == "forward" else None,
+                contribution_growth_mode,
+                contribution_growth_annual,
+                extra_tracking_drag_annual,
+                cape_matching_strength,
+                fair_cape if np.isfinite(fair_cape) else float(cape_diag.get("median_cape", 18.0)),
+                cape_sensitivity if np.isfinite(cape_sensitivity) else 0.06,
+                int(calibration_start_year),
+                int(calibration_step),
+            )
+            calibration_stats = summarise_calibration(calibration_df)
+        except ValueError as exc:
+            st.warning(f"Calibration could not run: {exc}")
+        else:
+            ca, cb, cc, cd = st.columns(4)
+            ca.metric("Calibration tests", f"{int(calibration_stats['tests']):,}")
+            cb.metric("P10-P90 coverage", fmt_percent(calibration_stats["p10_p90_coverage"]))
+            cc.metric("Actual above median", fmt_percent(calibration_stats["actual_above_median_rate"]))
+            cd.metric("Median bias", fmt_percent(calibration_stats["median_bias"]))
+            st.plotly_chart(build_calibration_chart(calibration_df, currency_symbol), width="stretch", theme=None)
+            display_cal = calibration_df.copy()
+            for col in ["forecast_date", "train_start", "train_end", "actual_end"]:
+                display_cal[col] = pd.to_datetime(display_cal[col]).dt.strftime("%Y-%m")
+            for col in ["forecast_p10", "forecast_median", "forecast_p90", "actual_final"]:
+                display_cal[col] = display_cal[col].map(lambda x: fmt_currency(x, currency_symbol))
+            display_cal["actual_vs_median_pct"] = display_cal["actual_vs_median_pct"].map(fmt_percent)
+            display_cal["target_model_share"] = display_cal["target_model_share"].map(fmt_percent)
+            st.dataframe(display_cal, width="stretch", hide_index=True, height=360)
+            st.download_button(
+                "Download calibration CSV",
+                calibration_df.to_csv(index=False).encode("utf-8"),
+                file_name="forecast_calibration_backtest.csv",
+                mime="text/csv",
+            )
 
     render_fx_diagnostics(fx_diag, only_full_fx_windows)
     render_cpi_diagnostics(cpi_diag)
