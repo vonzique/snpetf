@@ -321,6 +321,39 @@ def inject_css() -> None:
             width: 100% !important;
         }
 
+        /* Sidebar slider value labels: keep the thumb numbers readable and avoid clipping
+           at the left/right edge of the sidebar. */
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] {
+            overflow: visible !important;
+            padding-left: 0.70rem !important;
+            padding-right: 2.10rem !important;
+            padding-top: 0.35rem !important;
+            margin-bottom: 0.65rem !important;
+        }
+
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] > div,
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] [data-baseweb="slider"],
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] [data-baseweb="slider"] > div,
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] [data-baseweb="slider"] * {
+            overflow: visible !important;
+        }
+
+        /* Do not let the earlier sidebar max-width rule compress slider value badges. */
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] [data-baseweb="slider"] *,
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] [role="slider"],
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] [role="slider"] * {
+            max-width: none !important;
+            white-space: nowrap !important;
+            text-overflow: clip !important;
+        }
+
+        /* Add enough breathing room so min/max labels on range sliders are not hidden. */
+        section[data-testid="stSidebar"] div[data-testid="stSlider"] [data-baseweb="slider"] {
+            width: calc(100% - 0.25rem) !important;
+            margin-left: 0.10rem !important;
+            margin-right: 0.95rem !important;
+        }
+
         .block-container {
             padding-top: 1.15rem;
             padding-bottom: 2.35rem;
