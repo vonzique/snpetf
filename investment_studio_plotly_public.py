@@ -2597,19 +2597,6 @@ def main() -> None:
         )
         st.caption("Good signs: P10-P90 coverage near 80%, actual-above-median near 50%, and median bias near 0%.")
 
-    st.markdown(
-        f"""
-        <div class="section-card">
-            <div class="section-title"><h2>Active configuration</h2></div>
-            <div class="section-subtitle">
-                Settings are now controlled from the left sidebar. Current run: {regime_meta['display']} start, {currency_label},
-                {int(year_range[0])}–{int(year_range[1])} year horizons, featured horizon {int(featured_horizon)} years.
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
     try:
         horizon_results = [
             simulate_rolling_horizon(
