@@ -2741,16 +2741,16 @@ def main() -> None:
     with st.sidebar.expander("6) Mortgage amortisation calculator", expanded=False):
         enable_amortisation = st.checkbox(
             "Show amortisation calculator",
-            value=True,
+            value=False,
             help="Adds a repayment-mortgage amortisation schedule and can overlay the mortgage balance against the investment horizon chart.",
         )
         combine_investment_and_mortgage = st.checkbox(
             "Combine mortgage and investment graphs",
-            value=True,
+            value=False,
             help="Overlays remaining mortgage balance with the investment ending-wealth horizon chart.",
         )
-        mortgage_principal = st.number_input(f"Mortgage / loan amount ({currency_symbol})", min_value=0.0, value=190000.0, step=5000.0)
-        mortgage_rate_annual = st.number_input("Mortgage interest rate (% / year)", min_value=0.0, max_value=25.0, value=4.50, step=0.05) / 100.0
+        mortgage_principal = st.number_input(f"Mortgage / loan amount ({currency_symbol})", min_value=0.0, value=500000.0, step=5000.0)
+        mortgage_rate_annual = st.number_input("Mortgage interest rate (% / year)", min_value=0.0, max_value=25.0, value=4.00, step=0.05) / 100.0
         mortgage_term_years = st.number_input("Mortgage term (years)", min_value=1, max_value=50, value=25, step=1)
         mortgage_term_extra_months = st.number_input("Extra term months", min_value=0, max_value=11, value=0, step=1)
         mortgage_extra_monthly = st.number_input(f"Extra monthly overpayment ({currency_symbol})", min_value=0.0, value=0.0, step=50.0)
