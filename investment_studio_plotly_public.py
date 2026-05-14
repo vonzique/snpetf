@@ -1840,6 +1840,175 @@ def fmt_percent(value: float) -> str:
     return f"{value * 100:.2f}%"
 
 
+
+def calculate_monthly_payment(principal: float, annual_rate: float, term_months: int) -> float:
+    principal = max(float(principal), 0.0)
+    term_months = max(int(term_months), 0)
+    if principal <= 0 or term_months <= 0:
+        return 0.0
+    monthly_rate = float(annual_rate) / 12.0
+    if abs(monthly_rate) < 1e-12:
+        return principal / term_months
+    return principal * monthly_rate / (1.0 - (1.0 + monthly_rate) ** (-term_months))
+
+
+def build_amortisation_schedule(
+    principal: float,
+    annual_rate: float,
+    term_years: int,
+    term_months_extra: int = 0,
+    extra_monthly_payment: float = 0.0,
+) -> tuple[pd.DataFrame, pd.DataFrame, dict]:
+    principal = max(float(principal), 0.0)
+    annual_rate = float(annual_rate)
+    total_months = int(term_years) * 12 + int(term_months_extra)
+    extra_monthly_payment = max(float(extra_monthly_payment), 0.0)
+    scheduled_payment = calculate_monthly_payment(principal, annual_rate, total_months)
+    monthly_rate = annual_rate / 12.0
+    balance = principal
+    rows: list[dict] = []
+    cumulative_interest = 0.0
+    month = 0
+    safety_limit = max(total_months, 1) + 1200
+    while balance > 1e-8 and month < safety_limit:
+        month += 1
+        interest = balance * monthly_rate
+        payment = scheduled_payment + extra_monthly_payment
+        principal_paid = min(max(payment - interest, 0.0), balance)
+        actual_payment = interest + principal_paid
+        balance = max(balance - principal_paid, 0.0)
+        cumulative_interest += interest
+        rows.append({
+            "month": month,
+            "year": int(np.ceil(month / 12.0)),
+            "payment": actual_payment,
+            "scheduled_payment": min(scheduled_payment, actual_payment),
+            "extra_payment": max(actual_payment - scheduled_payment, 0.0),
+            "interest": interest,
+            "principal": principal_paid,
+            "balance": balance,
+            "cumulative_interest": cumulative_interest,
+            "cumulative_principal": principal - balance,
+        })
+        if scheduled_payment <= 0 and extra_monthly_payment <= 0:
+            break
+
+    monthly_df = pd.DataFrame(rows)
+    if monthly_df.empty:
+        yearly_df = pd.DataFrame(columns=["year", "payment", "interest", "principal", "balance", "cumulative_interest", "cumulative_principal"])
+        metrics = {"monthly_payment": scheduled_payment, "actual_payoff_months": 0, "total_payments": 0.0, "total_interest": 0.0, "interest_saved": 0.0}
+        return monthly_df, yearly_df, metrics
+
+    yearly_df = monthly_df.groupby("year", as_index=False).agg({
+        "payment": "sum",
+        "interest": "sum",
+        "principal": "sum",
+        "balance": "last",
+        "cumulative_interest": "last",
+        "cumulative_principal": "last",
+    })
+    no_extra_payment = calculate_monthly_payment(principal, annual_rate, total_months)
+    baseline_total_interest = no_extra_payment * total_months - principal if total_months > 0 else 0.0
+    total_interest = float(monthly_df["interest"].sum())
+    metrics = {
+        "monthly_payment": float(scheduled_payment),
+        "actual_payoff_months": int(monthly_df["month"].max()),
+        "total_payments": float(monthly_df["payment"].sum()),
+        "total_interest": total_interest,
+        "interest_saved": max(float(baseline_total_interest - total_interest), 0.0),
+    }
+    return monthly_df, yearly_df, metrics
+
+
+def build_amortisation_balance_chart(yearly_df: pd.DataFrame, currency_symbol: str) -> go.Figure:
+    fig = go.Figure()
+    if not yearly_df.empty:
+        fig.add_trace(go.Scatter(
+            x=yearly_df["year"], y=yearly_df["balance"], mode="lines+markers",
+            name="Mortgage balance", line=dict(shape="spline", smoothing=0.8, width=4, color="#f97316"),
+            hovertemplate=f"Year=%{{x}}<br>Balance={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        ))
+        fig.add_trace(go.Bar(
+            x=yearly_df["year"], y=yearly_df["interest"], name="Interest paid that year",
+            marker_color="rgba(251,191,36,0.50)",
+            hovertemplate=f"Year=%{{x}}<br>Interest={currency_symbol}%{{y:,.0f}}<extra></extra>",
+            yaxis="y2",
+        ))
+    fig.update_xaxes(title_text="Year")
+    fig.update_yaxes(title_text=f"Remaining balance ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
+    fig.update_layout(
+        yaxis2=dict(title=f"Annual interest ({currency_symbol})", overlaying="y", side="right", tickprefix=currency_symbol, separatethousands=True, showgrid=False),
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="top", y=-0.18, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
+        margin=dict(l=72, r=72, t=64, b=98),
+    )
+    return _chart_layout(fig, "Mortgage amortisation", height=560)
+
+
+def build_investment_mortgage_combined_chart(summary_df: pd.DataFrame, yearly_df: pd.DataFrame, currency_symbol: str) -> go.Figure:
+    fig = go.Figure()
+    if summary_df is not None and not summary_df.empty:
+        fig.add_trace(go.Scatter(x=summary_df["years"], y=summary_df["p10"], mode="lines", line=dict(width=0), hoverinfo="skip", showlegend=False))
+        fig.add_trace(go.Scatter(
+            x=summary_df["years"], y=summary_df["p90"], mode="lines", line=dict(width=0), fill="tonexty", fillcolor="rgba(56,189,248,0.14)",
+            name="Investment 10th-90th percentile",
+            hovertemplate=f"Year=%{{x}}<br>Investment P90={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        ))
+        fig.add_trace(go.Scatter(
+            x=summary_df["years"], y=summary_df["median"], mode="lines+markers",
+            name="Investment median wealth", line=dict(shape="spline", smoothing=1.0, width=4, color="#38bdf8"),
+            hovertemplate=f"Year=%{{x}}<br>Median investment wealth={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        ))
+        if "real_median" in summary_df.columns and summary_df["real_median"].notna().any():
+            fig.add_trace(go.Scatter(
+                x=summary_df["years"], y=summary_df["real_median"], mode="lines",
+                name="Investment median CPI-adjusted", line=dict(shape="spline", smoothing=1.0, width=3, dash="dash", color="#fbbf24"),
+                hovertemplate=f"Year=%{{x}}<br>CPI-adjusted investment={currency_symbol}%{{y:,.0f}}<extra></extra>",
+            ))
+    if yearly_df is not None and not yearly_df.empty:
+        fig.add_trace(go.Scatter(
+            x=yearly_df["year"], y=yearly_df["balance"], mode="lines+markers",
+            name="Remaining mortgage balance", line=dict(shape="spline", smoothing=0.8, width=4, color="#fb7185"),
+            hovertemplate=f"Year=%{{x}}<br>Mortgage balance={currency_symbol}%{{y:,.0f}}<extra></extra>",
+        ))
+    fig.update_xaxes(title_text="Years from today")
+    fig.update_yaxes(title_text=f"Value / balance ({currency_symbol})", tickprefix=currency_symbol, separatethousands=True)
+    fig.update_layout(
+        hovermode="x unified",
+        legend=dict(orientation="h", yanchor="top", y=-0.20, xanchor="center", x=0.5, title=None, font=dict(color="#cbd5e1"), bgcolor="rgba(15,23,42,.45)", bordercolor="rgba(148,163,184,.18)", borderwidth=1),
+        margin=dict(l=72, r=28, t=64, b=110),
+    )
+    return _chart_layout(fig, "Investment outcome vs mortgage amortisation", height=620)
+
+
+def make_amortisation_display_table(yearly_df: pd.DataFrame, currency_symbol: str) -> pd.DataFrame:
+    if yearly_df.empty:
+        return yearly_df.copy()
+    rename = {
+        "year": "Year", "payment": "Payments", "interest": "Interest", "principal": "Principal", "balance": "Ending balance",
+        "cumulative_interest": "Cumulative interest", "cumulative_principal": "Cumulative principal",
+    }
+    table = yearly_df[list(rename.keys())].rename(columns=rename)
+    for col in ["Payments", "Interest", "Principal", "Ending balance", "Cumulative interest", "Cumulative principal"]:
+        table[col] = table[col].map(lambda x: fmt_currency(x, currency_symbol))
+    return table
+
+
+def make_combined_investment_mortgage_table(summary_df: pd.DataFrame, yearly_df: pd.DataFrame, currency_symbol: str) -> pd.DataFrame:
+    if summary_df.empty or yearly_df.empty:
+        return pd.DataFrame()
+    invest = summary_df[["years", "p10", "median", "p90"]].copy().rename(columns={"years": "year", "p10": "investment_p10", "median": "investment_median", "p90": "investment_p90"})
+    mortgage = yearly_df[["year", "balance", "cumulative_interest"]].copy()
+    merged = invest.merge(mortgage, on="year", how="left")
+    merged["net_median_after_mortgage_balance"] = merged["investment_median"] - merged["balance"].fillna(0.0)
+    display = merged.rename(columns={
+        "year": "Year", "investment_p10": "Investment P10", "investment_median": "Investment median", "investment_p90": "Investment P90",
+        "balance": "Mortgage balance", "cumulative_interest": "Mortgage cumulative interest", "net_median_after_mortgage_balance": "Median investment minus balance",
+    })
+    for col in ["Investment P10", "Investment median", "Investment P90", "Mortgage balance", "Mortgage cumulative interest", "Median investment minus balance"]:
+        display[col] = display[col].map(lambda x: fmt_currency(x, currency_symbol))
+    return display
+
 def fmt_multiple(value: float) -> str:
     if pd.isna(value):
         return "n/a"
@@ -2569,7 +2738,25 @@ def main() -> None:
                 f"{forward_expected_return_annual*100:.2f}%/yr before fees/platform costs."
             )
 
-    with st.sidebar.expander("6) Forecast calibration / backtest", expanded=False):
+    with st.sidebar.expander("6) Mortgage amortisation calculator", expanded=False):
+        enable_amortisation = st.checkbox(
+            "Show amortisation calculator",
+            value=True,
+            help="Adds a repayment-mortgage amortisation schedule and can overlay the mortgage balance against the investment horizon chart.",
+        )
+        combine_investment_and_mortgage = st.checkbox(
+            "Combine mortgage and investment graphs",
+            value=True,
+            help="Overlays remaining mortgage balance with the investment ending-wealth horizon chart.",
+        )
+        mortgage_principal = st.number_input(f"Mortgage / loan amount ({currency_symbol})", min_value=0.0, value=190000.0, step=5000.0)
+        mortgage_rate_annual = st.number_input("Mortgage interest rate (% / year)", min_value=0.0, max_value=25.0, value=4.50, step=0.05) / 100.0
+        mortgage_term_years = st.number_input("Mortgage term (years)", min_value=1, max_value=50, value=25, step=1)
+        mortgage_term_extra_months = st.number_input("Extra term months", min_value=0, max_value=11, value=0, step=1)
+        mortgage_extra_monthly = st.number_input(f"Extra monthly overpayment ({currency_symbol})", min_value=0.0, value=0.0, step=50.0)
+        st.caption("This is a fixed-rate repayment calculation. It does not model remortgaging, variable-rate changes, product fees, ERCs or tax effects.")
+
+    with st.sidebar.expander("7) Forecast calibration / backtest", expanded=False):
         st.caption(
             "Tests the forecast engine as if each past calibration date was 'today', then compares the modelled range with realised future outcomes."
         )
@@ -2623,6 +2810,18 @@ def main() -> None:
 
     summary_df = pd.DataFrame([{"years": r.years, **r.stats.to_dict()} for r in horizon_results])
     primary = next(r for r in horizon_results if r.years == int(featured_horizon))
+
+    amortisation_monthly_df = pd.DataFrame()
+    amortisation_yearly_df = pd.DataFrame()
+    amortisation_metrics = {"monthly_payment": 0.0, "actual_payoff_months": 0, "total_payments": 0.0, "total_interest": 0.0, "interest_saved": 0.0}
+    if enable_amortisation:
+        amortisation_monthly_df, amortisation_yearly_df, amortisation_metrics = build_amortisation_schedule(
+            mortgage_principal,
+            mortgage_rate_annual,
+            int(mortgage_term_years),
+            int(mortgage_term_extra_months),
+            mortgage_extra_monthly,
+        )
 
     # Run Monte Carlo before the dashboard so the Historical vs Monte Carlo chart
     # can sit side by side with the Ending wealth across horizons chart.
@@ -2683,6 +2882,51 @@ def main() -> None:
         st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
         st.plotly_chart(build_horizon_chart(summary_df, currency_symbol), width="stretch", theme=None)
         st.markdown('</div>', unsafe_allow_html=True)
+
+    if enable_amortisation:
+        st.markdown(
+            '<div class="section-title"><h2>Mortgage amortisation calculator</h2></div>'
+            '<div class="section-subtitle">Repayment schedule and optional comparison against the investment ending-wealth horizon.</div>',
+            unsafe_allow_html=True,
+        )
+        payoff_years = amortisation_metrics["actual_payoff_months"] / 12.0 if amortisation_metrics["actual_payoff_months"] else 0.0
+        mortgage_html = "".join([
+            _metric_card("Monthly payment", fmt_currency(amortisation_metrics["monthly_payment"], currency_symbol), "Standard repayment before optional overpayment."),
+            _metric_card("Payoff time", f"{payoff_years:.1f} years", f"{int(amortisation_metrics['actual_payoff_months']):,} monthly payments."),
+            _metric_card("Total interest", fmt_currency(amortisation_metrics["total_interest"], currency_symbol), "Interest over the calculated schedule."),
+            _metric_card("Interest saved", fmt_currency(amortisation_metrics["interest_saved"], currency_symbol), "Saving from the extra monthly overpayment vs no overpayment."),
+        ])
+        st.markdown(f'<div class="kpi-grid">{mortgage_html}</div>', unsafe_allow_html=True)
+
+        amort_col, table_col = st.columns([1.05, 1.0])
+        with amort_col:
+            st.markdown('<div class="chart-shell">', unsafe_allow_html=True)
+            st.plotly_chart(build_amortisation_balance_chart(amortisation_yearly_df, currency_symbol), width="stretch", theme=None)
+            st.markdown('</div>', unsafe_allow_html=True)
+        with table_col:
+            st.markdown('<div class="section-card"><div class="section-title"><h2>Annual amortisation table</h2></div><div class="section-subtitle">Yearly totals similar to a standard amortisation calculator.</div>', unsafe_allow_html=True)
+            amort_table = make_amortisation_display_table(amortisation_yearly_df, currency_symbol)
+            st.dataframe(amort_table, width="stretch", hide_index=True, height=430)
+            st.download_button(
+                "Download amortisation CSV",
+                amortisation_monthly_df.to_csv(index=False).encode("utf-8"),
+                file_name="mortgage_amortisation_schedule.csv",
+                mime="text/csv",
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
+
+        if combine_investment_and_mortgage:
+            st.markdown('<div class="section-card"><div class="section-title"><h2>Combined investment and mortgage view</h2></div><div class="section-subtitle">Compares the investment outcome range with the remaining mortgage balance at each year.</div>', unsafe_allow_html=True)
+            st.plotly_chart(build_investment_mortgage_combined_chart(summary_df, amortisation_yearly_df, currency_symbol), width="stretch", theme=None)
+            combined_table = make_combined_investment_mortgage_table(summary_df, amortisation_yearly_df, currency_symbol)
+            st.dataframe(combined_table, width="stretch", hide_index=True, height=360)
+            st.download_button(
+                "Download combined comparison CSV",
+                combined_table.to_csv(index=False).encode("utf-8"),
+                file_name="investment_vs_mortgage_comparison.csv",
+                mime="text/csv",
+            )
+            st.markdown('</div>', unsafe_allow_html=True)
 
     if enable_monte_carlo:
         st.markdown('<div class="section-title"><h2>Forecast-conditioned Monte Carlo study</h2></div><div class="section-subtitle">Synthetic paths for the featured horizon. The main Historical vs Monte Carlo chart is shown above next to the horizon chart.</div>', unsafe_allow_html=True)
